@@ -1,0 +1,8 @@
+{
+	"dev": {
+		"run": "pnpm run dev"
+	},
+	"server": "self-hosted",
+	"module-path": "./spacetimedb",
+	"database": "trycatchdb"
+}
