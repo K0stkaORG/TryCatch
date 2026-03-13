@@ -14,7 +14,7 @@ export default async function Home() {
   }
 
   return (
-    <main style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
+    <main className="bg-red-400 min-h-screen p-4">
       <h1>SpacetimeDB Next.js App</h1>
       <PersonList initialPeople={initialPeople} />
     </main>
