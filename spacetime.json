@@ -1,6 +1,6 @@
 {
 	"dev": {
-		"run": "pnpm run dev"
+		"run": "pnpm run next-dev"
 	},
 	"server": "self-hosted",
 	"module-path": "./spacetimedb",

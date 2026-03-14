@@ -1,11 +1,11 @@
-import { DbConnection, tables } from '../src/module_bindings';
-import { Person } from '../src/module_bindings/types';
-import type { Infer } from 'spacetimedb';
+import { Flights } from "@/src/module_bindings/types";
+import type { Infer } from "spacetimedb";
+import { DbConnection, tables } from "../src/module_bindings";
 
-const HOST = process.env.SPACETIMEDB_HOST ?? 'wss://maincloud.spacetimedb.com';
-const DB_NAME = process.env.SPACETIMEDB_DB_NAME ?? 'nextjs-ts';
+const HOST = process.env.SPACETIMEDB_HOST ?? "wss://maincloud.spacetimedb.com";
+const DB_NAME = process.env.SPACETIMEDB_DB_NAME ?? "nextjs-ts";
 
-export type PersonData = Infer<typeof Person>;
+export type FlightData = Infer<typeof Flights>;
 
 /**
  * Fetches the initial list of people from SpacetimeDB.
@@ -14,37 +14,36 @@ export type PersonData = Infer<typeof Person>;
  * It establishes a WebSocket connection, subscribes to the person table,
  * waits for the initial data, and then disconnects.
  */
-export async function fetchPeople(): Promise<PersonData[]> {
-  return new Promise((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      reject(new Error('SpacetimeDB connection timeout'));
-    }, 10000);
+export async function fetchFlights(): Promise<FlightData[]> {
+	return new Promise((resolve, reject) => {
+		const timeoutId = setTimeout(() => {
+			reject(new Error("SpacetimeDB connection timeout"));
+		}, 10000);
 
-    const connection = DbConnection.builder()
-      .withUri(HOST)
-      .withDatabaseName(DB_NAME)
-      .onConnect(conn => {
-        // Subscribe to all people
-        conn
-          .subscriptionBuilder()
-          .onApplied(() => {
-            clearTimeout(timeoutId);
-            // Get all people from the cache
-            const people = Array.from(conn.db.person.iter());
-            conn.disconnect();
-            resolve(people);
-          })
-          .onError((ctx) => {
-            clearTimeout(timeoutId);
-            conn.disconnect();
-            reject(ctx.event ?? new Error('Subscription error'));
-          })
-          .subscribe(tables.person);
-      })
-      .onConnectError((_ctx, error) => {
-        clearTimeout(timeoutId);
-        reject(error);
-      })
-      .build();
-  });
+		const connection = DbConnection.builder()
+			.withUri(HOST)
+			.withDatabaseName(DB_NAME)
+			.onConnect((conn) => {
+				// Subscribe to all people
+				conn.subscriptionBuilder()
+					.onApplied(() => {
+						clearTimeout(timeoutId);
+						// Get all people from the cache
+						const flights = Array.from(conn.db.flights.iter());
+						conn.disconnect();
+						resolve(flights);
+					})
+					.onError((ctx) => {
+						clearTimeout(timeoutId);
+						conn.disconnect();
+						reject(ctx.event ?? new Error("Subscription error"));
+					})
+					.subscribe(tables.flights);
+			})
+			.onConnectError((_ctx, error) => {
+				clearTimeout(timeoutId);
+				reject(error);
+			})
+			.build();
+	});
 }

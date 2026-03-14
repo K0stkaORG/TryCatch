@@ -9,4 +9,14 @@
 		"use_new_terminal": false,
 		"hide": "on_success",
 	},
+	{
+		"label": "Generate Spacetime types",
+		"command": "pnpm run spacetime:generate",
+		"reveal": "always",
+		"reveal_target": "dock",
+		"cwd": "$ZED_WORKTREE_ROOT",
+		"allow_concurrent_runs": false,
+		"use_new_terminal": false,
+		"hide": "on_success",
+	},
 ]
