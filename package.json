@@ -1,0 +1,37 @@
+{
+	"name": "try-catch-monorepo",
+	"version": "1.0.0",
+	"description": "TryCatch monorepo containing client and server",
+	"private": true,
+	"packageManager": "pnpm@10.30.1",
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"bcrypt",
+			"es5-ext",
+			"esbuild",
+			"unrs-resolver"
+		]
+	},
+	"scripts": {
+		"dev": "pnpm --parallel --filter try-catch-client --filter try-catch-server dev",
+		"dev:client": "pnpm --filter try-catch-client dev",
+		"dev:server": "pnpm --filter try-catch-server dev",
+		"build": "pnpm --parallel --filter try-catch-clients --filter try-catch-server build",
+		"build:client": "pnpm --filter try-catch-client build",
+		"build:server": "pnpm --filter try-catch-server build",
+		"start:server": "pnpm --filter try-catch-server start",
+		"lint": "pnpm --parallel --filter try-catch-client --filter try-catch-server lint",
+		"lint:client": "pnpm --filter try-catch-client lint",
+		"lint:server": "pnpm --filter try-catch-server lint",
+		"db:generate": "pnpm --filter try-catch-server db:generate",
+		"db:migrate": "pnpm --filter try-catch-server db:migrate",
+		"db:studio": "pnpm --filter try-catch-server db:studio"
+	},
+	"devDependencies": {
+		"prettier-plugin-organize-imports": "^4.3.0",
+		"prettier-plugin-tailwindcss": "^0.7.2"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC"
+}

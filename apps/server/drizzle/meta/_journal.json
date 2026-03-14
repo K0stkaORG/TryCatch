@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1773521337651,
+      "tag": "0000_organic_nico_minoru",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773525802408,
+      "tag": "0001_classy_rocket_racer",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773527054386,
+      "tag": "0002_married_dexter_bennett",
+      "breakpoints": true
+    }
+  ]
+}

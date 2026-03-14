@@ -1,0 +1,1 @@
+ALTER TABLE "flight_packets" ALTER COLUMN "parsed_data" DROP NOT NULL;

@@ -1,0 +1,1 @@
+CREATE INDEX "idx_flight_id" ON "flight_packets" USING btree ("flight_id");
