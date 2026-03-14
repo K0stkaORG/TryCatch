@@ -1,5 +1,0 @@
-.next/**
-node_modules/**
-spacetimedb/dist/**
-spacetimedb/node_modules/**
-src/module_bindings/**
