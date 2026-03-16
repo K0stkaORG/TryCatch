@@ -8,6 +8,7 @@ import { Server as SocketIOServer } from "socket.io";
 import { db, Flights } from "./db";
 import { ActiveFlightHandler } from "./lib/activeFlightHandler";
 import { ExtendedError } from "./lib/errors";
+import { ESPPathPicker } from "./lib/espPathPicker";
 import { logger } from "./lib/logger";
 import { errorHandler } from "./restAPI/middleware/errorHandler";
 import { setupRoutes } from "./restAPI/routes";
@@ -33,6 +34,9 @@ export async function startServer(port: number): Promise<HTTPServer> {
 			},
 		},
 	);
+
+	// Identify ESP32 serial port
+	await ESPPathPicker.pickPath();
 
 	// Start active flight handler
 	const activeFlight = await db.query.Flights.findFirst({

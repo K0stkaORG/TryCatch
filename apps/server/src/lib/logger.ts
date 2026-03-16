@@ -1,6 +1,5 @@
 import chalk from "chalk";
 import { DrizzleQueryError } from "drizzle-orm";
-import { ENV } from "~/env";
 import { localize } from "./branding/date";
 import { ExtendedError, UserRequestError } from "./errors";
 
@@ -97,7 +96,7 @@ const printLog = (level: "INFO" | "WARN" | "ERROR", args: unknown[]) => {
 };
 
 export const logger = {
-	info: ENV.NODE_ENV === "development" ? (...args: unknown[]) => printLog("INFO", args) : (..._args: unknown[]) => {},
+	info: (...args: unknown[]) => printLog("INFO", args),
 	warn: (...args: unknown[]) => printLog("WARN", args),
 	error: (error: Error | string | unknown) => printLog("ERROR", [error]),
 };
