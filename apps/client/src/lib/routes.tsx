@@ -1,9 +1,8 @@
-import { FullScreenLoader } from "@/screens/Loading.Screen";
 import { Outlet, createBrowserRouter, data, isRouteErrorResponse, useRouteError } from "react-router";
 
 import { RootLayout } from "@/components/RootLayout";
-import NotFoundScreen from "@/screens/404.screen";
 import ActiveFlightScreen from "@/screens/ActiveFlight.screen";
+import ErrorScreen from "@/screens/Error.screen";
 import FinishedFlightScreen from "@/screens/FinishedFlightDetails";
 import FlightsScreen from "@/screens/Flights.screen";
 import NewFlightScreen from "@/screens/NewFlight.screen";
@@ -20,28 +19,33 @@ function RootErrorBoundary() {
 	const error = useRouteError();
 
 	if (isRouteErrorResponse(error)) {
-		if (error.status === 404) return <NotFoundScreen />;
+		if (error.status === 404)
+			return (
+				<ErrorScreen
+					title="Signal lost (404)"
+					backAndHomeButtons
+				/>
+			);
 
 		return (
-			<>
-				<h1>
-					{error.status} {error.statusText}
-				</h1>
-				<p>{error.data}</p>
-			</>
+			<ErrorScreen
+				title={`${error.status} ${error.statusText}`}
+				details={<pre>{JSON.stringify(error.data, null, 2)}</pre>}
+			/>
 		);
-	} else if (error instanceof Error) {
+	} else if (error instanceof Error)
 		return (
-			<div>
-				<h1>Error</h1>
-				<p>{error.message}</p>
-				<p>The stack trace is:</p>
-				<pre>{error.stack}</pre>
-			</div>
+			<ErrorScreen
+				title="An unexpected error occurred"
+				details={
+					<div>
+						<p>{error.message}</p>
+						<pre>{error.stack}</pre>
+					</div>
+				}
+			/>
 		);
-	} else {
-		return <h1>Unknown Error</h1>;
-	}
+	else return <ErrorScreen title="An unknown error occurred" />;
 }
 
 export const Routes = () => {
@@ -49,7 +53,12 @@ export const Routes = () => {
 		{
 			element: <RootLayout />,
 			ErrorBoundary: RootErrorBoundary,
-			hydrateFallbackElement: <FullScreenLoader />,
+			hydrateFallbackElement: (
+				<ErrorScreen
+					title="Loading..."
+					loader
+				/>
+			),
 			children: [
 				{
 					path: "/",

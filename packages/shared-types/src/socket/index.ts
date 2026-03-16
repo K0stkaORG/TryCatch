@@ -5,8 +5,9 @@ export type ClientToServerEvents = {};
 
 // Data that goes FROM the server TO the client
 export type ServerToClientEvents = {
-	initialSync: (data: { packets: Pick<Packet, "receivedAt" | "rawBytes" | "parsedData">[] }) => void;
-	packet: (data: { packet: Pick<Packet, "receivedAt" | "rawBytes" | "parsedData"> }) => void;
+	initialSync: (data: { packets: Pick<Packet, "receivedAt" | "parsedData">[] }) => void;
+	packet: (data: { packet: Pick<Packet, "receivedAt" | "parsedData"> }) => void;
+	packetLoss: (data: { percentLoss: number }) => void;
 	flightEnded: () => void;
 };
 

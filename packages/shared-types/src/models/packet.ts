@@ -12,11 +12,13 @@ export type Packet = {
 			latitude: number;
 			longitude: number;
 			altitude: number;
+			total: number;
 		};
 		acceleration: {
 			latitude: number;
 			longitude: number;
 			altitude: number;
+			total: number;
 		};
 
 		orientation: {

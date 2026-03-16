@@ -7,6 +7,13 @@ import { logger } from "~/lib/logger";
 export function setupSocketHandlers(io: AppServer): void {
 	ActiveFlightHandler.onNewPacket((packet) => io.emit("packet", { packet }));
 
+	ActiveFlightHandler.onPacketLoss((percentLoss) => io.emit("packetLoss", { percentLoss }));
+
+	ActiveFlightHandler.onFlightEnd(() => {
+		io.emit("flightEnded");
+		io.disconnectSockets(true);
+	});
+
 	io.on("connection", (socket: AppSocket) => {
 		// Error handling
 		socket.on("error", (error) => logger.error(new ExtendedError(error.message ?? "Unknown socket error", error)));
