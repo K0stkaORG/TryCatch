@@ -15,7 +15,11 @@ const FlightsScreen = () => {
 	const { activeFlight, archivedFlights } = useLoaderData<FlightsListResponse>();
 
 	return (
-		<div className="from-primary/20 to-primary/30 flex h-dvh w-dvw items-center justify-center bg-linear-to-br via-transparent">
+		<div className="from-primary/20 to-primary/30 relative flex h-dvh w-dvw items-center justify-center bg-linear-to-br via-transparent">
+			<img
+				src="/damascus.png"
+				className="absolute inset-0 object-cover"
+			/>
 			<div className="relative grid h-9/10 w-9/10 grid-cols-2 grid-rows-[auto_1fr] gap-4">
 				<FlightsCard>
 					<CardHeader>

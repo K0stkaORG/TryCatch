@@ -3,7 +3,7 @@
 	"version": "1.0.0",
 	"description": "TryCatch monorepo containing client and server",
 	"private": true,
-	"packageManager": "pnpm@10.30.1",
+	"packageManager": "pnpm@10.32.1",
 	"pnpm": {
 		"onlyBuiltDependencies": [
 			"@serialport/bindings-cpp",
@@ -17,7 +17,7 @@
 		"dev": "pnpm --parallel --filter try-catch-client --filter try-catch-server dev",
 		"dev:client": "pnpm --filter try-catch-client dev",
 		"dev:server": "pnpm --filter try-catch-server dev",
-		"build": "pnpm --parallel --filter try-catch-clients --filter try-catch-server build",
+		"build": "pnpm --parallel --filter try-catch-client --filter try-catch-server build",
 		"build:client": "pnpm --filter try-catch-client build",
 		"build:server": "pnpm --filter try-catch-server build",
 		"start:server": "pnpm --filter try-catch-server start",

@@ -15,7 +15,6 @@ type ErrorScreenProps = {
 const ErrorScreen = ({ title, details, loader, backAndHomeButtons }: ErrorScreenProps) => {
 	return (
 		<div className="bg-background flex h-dvh w-dvw items-center justify-center px-6">
-			<img src="/damascus.svg" />
 			<div className="relative w-full max-w-xl">
 				<div className="bg-primary/15 absolute -top-12 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full blur-3xl" />
 				<Card className="bg-card/70 border-border/60 relative overflow-hidden rounded-3xl border shadow-2xl">
