@@ -19,6 +19,6 @@ export type FinishedFlightDataResponse = Flight & {
 };
 
 export const NewFlightRequest = z.object({
-	name: z.string(),
+	name: z.string().min(1, "Flight name is required").max(50, "Flight name must be less than 50 characters"),
 });
 export type NewFlightRequest = z.infer<typeof NewFlightRequest>;

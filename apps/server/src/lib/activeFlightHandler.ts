@@ -1,6 +1,7 @@
 import { Flight, Packet } from "@try-catch/shared-types";
 import { SerialPort } from "serialport";
 import { asc, db, eq, FlightPackets } from "~/db";
+import { ENV } from "~/env";
 import { decodePacket } from "./decodePacket";
 import { ExtendedError } from "./errors";
 import { ESPPathPicker } from "./espPathPicker";
@@ -16,7 +17,7 @@ export class ActiveFlightHandler {
 	private static packetLossListener: ((percentLoss: number) => void) | undefined;
 	private static flightEndListener: (() => void) | undefined;
 
-	private port: SerialPort;
+	private port: SerialPort | undefined;
 	private interval: NodeJS.Timeout;
 	private commitBuffer: Pick<Packet, "rawBytes" | "receivedAt" | "parsedData">[] = [];
 
@@ -25,6 +26,51 @@ export class ActiveFlightHandler {
 		public readonly packets: Pick<Packet, "receivedAt" | "parsedData">[],
 	) {
 		this.interval = setInterval(() => {
+			if (ENV.NODE_ENV === "development")
+				return void ActiveFlightHandler.newPacketListener?.({
+					receivedAt: new Date(),
+					parsedData: {
+						position: {
+							latitude: Math.random() * 100,
+							longitude: Math.random() * 100,
+							altitude: Math.random() * 100,
+						},
+						velocity: {
+							latitude: Math.random() * 100,
+							longitude: Math.random() * 100,
+							altitude: Math.random() * 100,
+							total: Math.random() * 100,
+						},
+						acceleration: {
+							latitude: Math.random() * 100,
+							longitude: Math.random() * 100,
+							altitude: Math.random() * 100,
+							total: Math.random() * 100,
+						},
+
+						orientation: {
+							roll: Math.random() * 100,
+							pitch: Math.random() * 100,
+							yaw: Math.random() * 100,
+						},
+						angularVelocity: {
+							roll: Math.random() * 100,
+							pitch: Math.random() * 100,
+							yaw: Math.random() * 100,
+						},
+
+						barmetricAltitude: Math.random() * 100,
+
+						batteryVoltage: Math.random() * 100,
+
+						triboelectricVoltage: Math.random() * 100,
+
+						launchDetected: Math.random() >= 0.5,
+						apogeeDetected: Math.random() >= 0.5,
+						parachuteDeployed: Math.random() >= 0.5,
+					},
+				});
+
 			const packetLossCuttof = Date.now() - PACKET_LOSS_HEARTBEAT_INTERVAL_MS;
 
 			let packetsReceivedInInterval = 0;
@@ -45,6 +91,11 @@ export class ActiveFlightHandler {
 
 			ActiveFlightHandler.packetLossListener?.(percentLoss);
 		}, PACKET_LOSS_HEARTBEAT_INTERVAL_MS);
+
+		if (ENV.NODE_ENV === "development") {
+			logger.warn("Running in development environment, using mock data instead of connecting to ESP32.");
+			return;
+		}
 
 		this.port = new SerialPort({
 			path: ESPPathPicker.path,
@@ -103,7 +154,7 @@ export class ActiveFlightHandler {
 	public static stop() {
 		if (!ActiveFlightHandler._instance) return;
 
-		ActiveFlightHandler._instance.port.destroy();
+		ActiveFlightHandler._instance.port?.destroy();
 		clearInterval(ActiveFlightHandler._instance.interval);
 		ActiveFlightHandler.flightEndListener?.();
 

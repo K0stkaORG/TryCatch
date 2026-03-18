@@ -1,5 +1,6 @@
 import { Link, useLoaderData } from "react-router";
 
+import StartFlightButton from "@/components/StartFlightButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -18,7 +19,7 @@ const FlightsScreen = () => {
 		<div className="from-primary/20 to-primary/30 relative flex h-dvh w-dvw items-center justify-center bg-linear-to-br via-transparent">
 			<img
 				src="/damascus.png"
-				className="absolute inset-0 object-cover"
+				className="absolute inset-0 object-cover opacity-5"
 			/>
 			<div className="relative grid h-9/10 w-9/10 grid-cols-2 grid-rows-[auto_1fr] gap-4">
 				<FlightsCard>
@@ -48,18 +49,20 @@ const FlightsScreen = () => {
 				<FlightsCard className="row-start-2 flex items-center justify-center">
 					{activeFlight ? (
 						<>
-							<pre>{JSON.stringify(activeFlight, null, 2)}</pre>
-							<Link to="/flight/active">Open</Link>
+							<span className="text-muted-foreground">There is an ongoing flight:</span>
+							<h2 className="-mt-6 text-2xl font-semibold">{activeFlight.name}</h2>
+
+							<Link to="/flight/active">
+								<Button className="flex items-center gap-2">
+									<Rocket />
+									View ongoing flight
+								</Button>
+							</Link>
 						</>
 					) : (
 						<>
 							There is no ongoint flight
-							<Link to="/flight/new">
-								<Button className="flex items-center gap-2">
-									<Rocket />
-									Start one
-								</Button>
-							</Link>
+							<StartFlightButton />
 						</>
 					)}
 				</FlightsCard>

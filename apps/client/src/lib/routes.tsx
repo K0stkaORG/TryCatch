@@ -5,7 +5,6 @@ import ActiveFlightScreen from "@/screens/ActiveFlight.screen";
 import ErrorScreen from "@/screens/Error.screen";
 import FinishedFlightScreen from "@/screens/FinishedFlightDetails";
 import FlightsScreen from "@/screens/Flights.screen";
-import NewFlightScreen from "@/screens/NewFlight.screen";
 import {
 	ActiveFlightDataResponse,
 	FinishedFlightDataRequest,
@@ -110,10 +109,6 @@ export const Routes = () => {
 								throw data(null, { status: 404 });
 							},
 							element: <FinishedFlightScreen />,
-						},
-						{
-							path: "new",
-							element: <NewFlightScreen />,
 						},
 					],
 				},

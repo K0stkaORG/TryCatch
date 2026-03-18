@@ -1,5 +1,6 @@
-import { ClientToServerEvents, Packet, ServerToClientEvents } from "@try-catch/shared-types";
+import { ClientToServerEvents, Flight, Packet, ServerToClientEvents } from "@try-catch/shared-types";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { io, Socket } from "socket.io-client";
 import { toast } from "sonner";
 
@@ -13,7 +14,9 @@ const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(isDevelopm
 
 type PacketType = Pick<Packet, "receivedAt" | "parsedData">;
 
-export const usePackets = () => {
+export const usePackets = (flightId: Flight["id"]) => {
+	const navigate = useNavigate();
+
 	const [connected, setConnected] = useState(socket.connected);
 	const [packetBuffer, setPacketBuffer] = useState<PacketType[]>([]);
 	const [packetLoss, setPacketLoss] = useState(0);
@@ -33,7 +36,9 @@ export const usePackets = () => {
 		socket.on("packetLoss", ({ percentLoss }) => setPacketLoss(percentLoss));
 
 		socket.on("flightEnded", () => {
-			toast.warning("The flight has ended. No new packets will be received.");
+			toast.warning("The flight has ended.");
+
+			setTimeout(() => navigate(`/flight/${flightId}`), 100);
 		});
 
 		return () => {
@@ -48,7 +53,7 @@ export const usePackets = () => {
 
 			socket.disconnect();
 		};
-	}, []);
+	}, [flightId, navigate]);
 
 	return {
 		connected,

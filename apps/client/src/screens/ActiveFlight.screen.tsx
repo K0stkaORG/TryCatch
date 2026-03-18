@@ -2,9 +2,10 @@ import ConfirmButton from "@/components/ConfirmButton";
 import ScreenTemplate from "@/components/ScreenTemplate";
 import { request } from "@/lib/server";
 import { usePackets } from "@/lib/socket";
+import { Canvas } from "@react-three/fiber";
 import { ActiveFlightDataResponse } from "@try-catch/shared-types";
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useLoaderData, useNavigate } from "react-router";
+import { useCallback, useMemo } from "react";
+import { useLoaderData } from "react-router";
 import {
 	Area,
 	AreaChart,
@@ -17,24 +18,85 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
-import * as THREE from "three";
+
+type RocketModelProps = {
+	roll?: number | null;
+	pitch?: number | null;
+	yaw?: number | null;
+};
+
+const toRad = (value: number) => (value * Math.PI) / 180;
+
+const RocketModel = ({ roll, pitch, yaw }: RocketModelProps) => {
+	const rotation = useMemo<[number, number, number]>(
+		() => [toRad(pitch ?? 0), toRad(yaw ?? 0), toRad(roll ?? 0)],
+		[roll, pitch, yaw],
+	);
+
+	const bodyMaterial = useMemo(
+		() => ({
+			color: "#6ba4ff",
+			metalness: 0.2,
+			roughness: 0.4,
+		}),
+		[],
+	);
+
+	const noseMaterial = useMemo(
+		() => ({
+			color: "#9aa7b2",
+			metalness: 0.2,
+			roughness: 0.35,
+		}),
+		[],
+	);
+
+	const finMaterial = useMemo(
+		() => ({
+			color: "#415a77",
+			metalness: 0.1,
+			roughness: 0.5,
+		}),
+		[],
+	);
+
+	return (
+		<group rotation={rotation}>
+			<mesh>
+				<cylinderGeometry args={[0.45, 0.45, 2.8, 24, 1, false]} />
+				<meshStandardMaterial {...bodyMaterial} />
+			</mesh>
+
+			<mesh position={[0, 1.9, 0]}>
+				<coneGeometry args={[0.5, 1, 24]} />
+				<meshStandardMaterial {...noseMaterial} />
+			</mesh>
+
+			<mesh position={[-0.5, -1.2, 0]}>
+				<boxGeometry args={[0.12, 0.6, 0.6]} />
+				<meshStandardMaterial {...finMaterial} />
+			</mesh>
+
+			<mesh position={[0.5, -1.2, 0]}>
+				<boxGeometry args={[0.12, 0.6, 0.6]} />
+				<meshStandardMaterial {...finMaterial} />
+			</mesh>
+		</group>
+	);
+};
 
 const ActiveFlightScreen = () => {
-	const navigate = useNavigate();
 	const flightDetails = useLoaderData<ActiveFlightDataResponse>();
-	const orientationContainerRef = useRef<HTMLDivElement | null>(null);
-	const rocketRef = useRef<THREE.Group | null>(null);
 
 	const handleStopFlight = useCallback(
 		() =>
 			request<void, void>({
 				path: "/flights/stop",
-				onSuccess: () => navigate("/"),
 			}),
-		[navigate],
+		[],
 	);
 
-	const { connected, packets, packetLoss } = usePackets();
+	const { connected, packets, packetLoss } = usePackets(flightDetails.id);
 	const latestPacket = packets[packets.length - 1];
 	const latestParsed = latestPacket?.parsedData ?? null;
 
@@ -57,90 +119,17 @@ const ActiveFlightScreen = () => {
 		[packets],
 	);
 
-	useEffect(() => {
-		if (!orientationContainerRef.current) {
-			return;
-		}
-
-		const container = orientationContainerRef.current;
-		const scene = new THREE.Scene();
-		const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-		camera.position.set(0, 0.8, 6);
-
-		const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-		renderer.setPixelRatio(window.devicePixelRatio);
-		container.appendChild(renderer.domElement);
-
-		const ambient = new THREE.AmbientLight(0xffffff, 0.7);
-		const directional = new THREE.DirectionalLight(0xffffff, 0.8);
-		directional.position.set(4, 6, 8);
-		scene.add(ambient, directional);
-
-		const rocketGroup = new THREE.Group();
-
-		const bodyGeometry = new THREE.CylinderGeometry(0.45, 0.45, 2.8, 24, 1, false);
-		const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x6ba4ff, metalness: 0.2, roughness: 0.4 });
-		const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-		body.position.y = 0;
-
-		const noseGeometry = new THREE.ConeGeometry(0.5, 1, 24);
-		const noseMaterial = new THREE.MeshStandardMaterial({ color: 0x9aa7b2, metalness: 0.2, roughness: 0.35 });
-		const nose = new THREE.Mesh(noseGeometry, noseMaterial);
-		nose.position.y = 1.9;
-
-		const finGeometry = new THREE.BoxGeometry(0.12, 0.6, 0.6);
-		const finMaterial = new THREE.MeshStandardMaterial({ color: 0x415a77, metalness: 0.1, roughness: 0.5 });
-		const finLeft = new THREE.Mesh(finGeometry, finMaterial);
-		const finRight = new THREE.Mesh(finGeometry, finMaterial);
-		finLeft.position.set(-0.5, -1.2, 0);
-		finRight.position.set(0.5, -1.2, 0);
-
-		rocketGroup.add(body, nose, finLeft, finRight);
-		scene.add(rocketGroup);
-
-		rocketRef.current = rocketGroup;
-
-		const resize = () => {
-			const width = container.clientWidth;
-			const height = container.clientHeight;
-			renderer.setSize(width, height, false);
-			camera.aspect = width / Math.max(height, 1);
-			camera.updateProjectionMatrix();
-		};
-
-		resize();
-		const observer = new ResizeObserver(resize);
-		observer.observe(container);
-
-		let frameId = 0;
-		const animate = () => {
-			frameId = requestAnimationFrame(animate);
-			renderer.render(scene, camera);
-		};
-
-		animate();
-
-		return () => {
-			cancelAnimationFrame(frameId);
-			observer.disconnect();
-			container.removeChild(renderer.domElement);
-			renderer.dispose();
-		};
-	}, []);
-
-	useEffect(() => {
-		if (!rocketRef.current || !latestParsed?.orientation) {
-			return;
-		}
-
-		const { roll, pitch, yaw } = latestParsed.orientation;
-		const toRad = (value: number) => (value * Math.PI) / 180;
-		rocketRef.current.rotation.set(toRad(pitch), toRad(yaw), toRad(roll));
-	}, [latestParsed]);
-
 	return (
 		<ScreenTemplate
-			title={`Live Flight ${flightDetails.name} (${flightDetails.id})`}
+			title={
+				<div className="flex items-center gap-4">
+					Flight {flightDetails.name}{" "}
+					<span className="text-muted-foreground inline-flex items-center gap-1 text-sm">
+						(<span className="bg-primary inline-block size-3 animate-pulse rounded-full" />
+						live)
+					</span>
+				</div>
+			}
 			backPath="/">
 			<div className="flex flex-col gap-4">
 				<div className="flex flex-wrap items-center justify-between gap-3">
@@ -255,10 +244,22 @@ const ActiveFlightScreen = () => {
 						<div className="rounded border p-4">
 							<div className="text-sm font-semibold">Rocket Orientation</div>
 							<p className="text-muted-foreground text-xs">3D attitude visualization.</p>
-							<div
-								ref={orientationContainerRef}
-								className="mt-4 h-64 w-full rounded bg-gradient-to-br from-slate-50 to-slate-100"
-							/>
+							<div className="mt-4 h-64 w-full overflow-hidden rounded bg-gradient-to-br from-slate-50 to-slate-100">
+								<Canvas
+									camera={{ fov: 50, position: [0, 0.8, 6] }}
+									dpr={[1, 2]}>
+									<ambientLight intensity={0.7} />
+									<directionalLight
+										intensity={0.8}
+										position={[4, 6, 8]}
+									/>
+									<RocketModel
+										roll={latestParsed?.orientation.roll}
+										pitch={latestParsed?.orientation.pitch}
+										yaw={latestParsed?.orientation.yaw}
+									/>
+								</Canvas>
+							</div>
 							<div className="text-muted-foreground mt-3 grid grid-cols-3 gap-2 text-xs">
 								<div>
 									<p className="tracking-[0.2em] uppercase">Roll</p>

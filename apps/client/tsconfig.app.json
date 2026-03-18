@@ -5,7 +5,7 @@
 		"useDefineForClassFields": true,
 		"lib": ["ES2022", "DOM", "DOM.Iterable"],
 		"module": "ESNext",
-		"types": ["vite/client"],
+		"types": ["vite/client", "@react-three/fiber", "three"],
 		"skipLibCheck": true,
 
 		/* Bundler mode */
@@ -25,8 +25,8 @@
 		"noUncheckedSideEffectImports": true,
 		"baseUrl": ".",
 		"paths": {
-			"@/*": ["./src/*"]
-		}
+			"@/*": ["./src/*"],
+		},
 	},
-	"include": ["src"]
+	"include": ["src"],
 }

@@ -15,9 +15,8 @@ export class ESPPathPicker {
 	}
 
 	public static async pickPath() {
-		// List all available serial ports
-		// Use enquirer to prompt the user to select the correct port for the ESP32
-		// Set the selected path to ESPPathPicker.path
+		if (ENV.NODE_ENV === "development")
+			return void logger.warn("Running in dev environment, skipping ESP path selection.");
 
 		const allPorts = await SerialPort.list();
 
@@ -27,15 +26,6 @@ export class ESPPathPicker {
 		if (allPorts.length === 1) {
 			ESPPathPicker._path = allPorts[0].path;
 			logger.info("Only one serial port found. Automatically selected path: " + ESPPathPicker._path);
-			return;
-		}
-
-		if (ENV.NODE_ENV === "development") {
-			ESPPathPicker._path = allPorts[0].path;
-			logger.warn(
-				"Automatically selected the first available serial port for development environment: " +
-					ESPPathPicker._path,
-			);
 			return;
 		}
 
