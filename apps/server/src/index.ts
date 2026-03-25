@@ -12,7 +12,7 @@ startServer(ENV.SERVER_PORT)
 		logger.info(`TryCatch server started successfully on port ${ENV.SERVER_PORT}`);
 	})
 	.catch((error) => {
-		logger.error(new ExtendedError("Failed to start TryCatch server", { error }));
+		logger.error(new ExtendedError("Failed to start TryCatch server", error));
 
 		process.exit(1);
 	});

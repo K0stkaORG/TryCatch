@@ -59,7 +59,7 @@ const formatParam = (param: unknown, root: boolean = true): Node => {
 			: `${chalk.red.bold("Error:")} ${param.message}`;
 	}
 
-	const nodes = (typeof param === "string" ? param : JSON.stringify(param, null, 2)).split("\n");
+	const nodes = typeof param === "string" ? param : JSON.stringify(param, null, 2).split("\n");
 	if (nodes.length == 1 && nodes[0] !== "{}") return nodes[0];
 	return nodes;
 };
