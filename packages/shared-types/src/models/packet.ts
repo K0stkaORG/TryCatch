@@ -1,4 +1,4 @@
-export type Packet = {
+export type ValidPacket = {
 	id: number;
 	flightId: number;
 	rawBytes: string;
@@ -41,6 +41,10 @@ export type Packet = {
 		launchDetected: boolean;
 		apogeeDetected: boolean;
 		parachuteDeployed: boolean;
-	} | null;
+	};
 	receivedAt: Date;
+};
+
+export type Packet = Omit<ValidPacket, "parsedData"> & {
+	parsedData: ValidPacket["parsedData"] | null;
 };

@@ -15,7 +15,7 @@ const ScreenTemplate = ({ title, backPath, children }: ScreenTemplateProps) => {
 			<header className="border-primary relative flex items-center justify-between overflow-hidden border-b-2 py-2">
 				<img
 					src="/damascus.png"
-					className="absolute inset-0 -z-10 object-cover opacity-10"
+					className="absolute top-0 left-0 -z-10 h-full w-full object-cover opacity-10"
 				/>
 				<div className="flex items-center">
 					{backPath && (

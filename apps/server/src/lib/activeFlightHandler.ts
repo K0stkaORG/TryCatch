@@ -1,4 +1,4 @@
-import { Flight, Packet } from "@try-catch/shared-types";
+import { Flight, Packet, ValidPacket } from "@try-catch/shared-types";
 import { SerialPort } from "serialport";
 import { asc, db, eq, FlightPackets } from "~/db";
 import { ENV } from "~/env";
@@ -9,11 +9,11 @@ import { logger } from "./logger";
 
 const COMMIT_EVERY_N_PACKETS = 10;
 const EXPECTED_PACKETS_PER_SECOND = 10;
-const PACKET_LOSS_HEARTBEAT_INTERVAL_MS = 5000;
+const PACKET_LOSS_HEARTBEAT_INTERVAL_MS = 100;
 
 export class ActiveFlightHandler {
 	private static _instance: ActiveFlightHandler | undefined;
-	private static newPacketListener: ((packet: Pick<Packet, "receivedAt" | "parsedData">) => void) | undefined;
+	private static newPacketListener: ((packet: Pick<ValidPacket, "receivedAt" | "parsedData">) => void) | undefined;
 	private static packetLossListener: ((percentLoss: number) => void) | undefined;
 	private static flightEndListener: (() => void) | undefined;
 
@@ -120,10 +120,11 @@ export class ActiveFlightHandler {
 				parsedData: packetData,
 			});
 
-			ActiveFlightHandler.newPacketListener?.({
-				receivedAt: new Date(),
-				parsedData: packetData,
-			});
+			if (packetData)
+				ActiveFlightHandler.newPacketListener?.({
+					receivedAt: new Date(),
+					parsedData: packetData,
+				});
 		});
 	}
 

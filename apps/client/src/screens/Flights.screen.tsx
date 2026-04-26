@@ -19,7 +19,7 @@ const FlightsScreen = () => {
 		<div className="from-primary/20 to-primary/30 relative flex h-dvh w-dvw items-center justify-center bg-linear-to-br via-transparent">
 			<img
 				src="/damascus.png"
-				className="absolute inset-0 object-cover opacity-5"
+				className="absolute top-0 left-0 h-full w-full object-cover opacity-5"
 			/>
 			<div className="relative grid h-9/10 w-9/10 grid-cols-2 grid-rows-[auto_1fr] gap-4">
 				<FlightsCard>

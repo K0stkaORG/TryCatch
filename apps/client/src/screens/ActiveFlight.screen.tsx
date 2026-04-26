@@ -4,21 +4,10 @@ import { request } from "@/lib/server";
 import { usePackets } from "@/lib/socket";
 import { Canvas } from "@react-three/fiber";
 import { ActiveFlightDataResponse } from "@try-catch/shared-types";
+import { Loader2 } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { useLoaderData } from "react-router";
-import {
-	Area,
-	AreaChart,
-	CartesianGrid,
-	Legend,
-	Line,
-	LineChart,
-	ResponsiveContainer,
-	Tooltip,
-	XAxis,
-	YAxis,
-} from "recharts";
-
+import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts";
 type RocketModelProps = {
 	roll?: number | null;
 	pitch?: number | null;
@@ -35,7 +24,7 @@ const RocketModel = ({ roll, pitch, yaw }: RocketModelProps) => {
 
 	const bodyMaterial = useMemo(
 		() => ({
-			color: "#6ba4ff",
+			color: "#ff00a1",
 			metalness: 0.2,
 			roughness: 0.4,
 		}),
@@ -44,7 +33,7 @@ const RocketModel = ({ roll, pitch, yaw }: RocketModelProps) => {
 
 	const noseMaterial = useMemo(
 		() => ({
-			color: "#9aa7b2",
+			color: "#000000",
 			metalness: 0.2,
 			roughness: 0.35,
 		}),
@@ -53,7 +42,7 @@ const RocketModel = ({ roll, pitch, yaw }: RocketModelProps) => {
 
 	const finMaterial = useMemo(
 		() => ({
-			color: "#415a77",
+			color: "#000000",
 			metalness: 0.1,
 			roughness: 0.5,
 		}),
@@ -73,12 +62,12 @@ const RocketModel = ({ roll, pitch, yaw }: RocketModelProps) => {
 			</mesh>
 
 			<mesh position={[-0.5, -1.2, 0]}>
-				<boxGeometry args={[0.12, 0.6, 0.6]} />
+				<boxGeometry args={[0.6, 0.6, 0.1]} />
 				<meshStandardMaterial {...finMaterial} />
 			</mesh>
 
 			<mesh position={[0.5, -1.2, 0]}>
-				<boxGeometry args={[0.12, 0.6, 0.6]} />
+				<boxGeometry args={[0.6, 0.6, 0.1]} />
 				<meshStandardMaterial {...finMaterial} />
 			</mesh>
 		</group>
@@ -97,27 +86,26 @@ const ActiveFlightScreen = () => {
 	);
 
 	const { connected, packets, packetLoss } = usePackets(flightDetails.id);
-	const latestPacket = packets[packets.length - 1];
-	const latestParsed = latestPacket?.parsedData ?? null;
+	const latestPacket = packets[packets.length - 1] ?? null;
 
-	const chartData = useMemo(
-		() =>
-			packets.map((packet, index) => {
-				const parsed = packet.parsedData;
-				return {
-					index: index + 1,
-					time: new Date(packet.receivedAt).toLocaleTimeString(),
-					altitude: parsed?.position.altitude ?? null,
-					velocity: parsed?.velocity.total ?? null,
-					acceleration: parsed?.acceleration.total ?? null,
-					battery: parsed?.batteryVoltage ?? null,
-					roll: parsed?.orientation.roll ?? null,
-					pitch: parsed?.orientation.pitch ?? null,
-					yaw: parsed?.orientation.yaw ?? null,
-				};
-			}),
-		[packets],
-	);
+	// const chartData = useMemo(
+	// 	() =>
+	// 		packets.map((packet, index) => {
+	// 			const parsed = packet.parsedData;
+	// 			return {
+	// 				index: index + 1,
+	// 				time: new Date(packet.receivedAt).toLocaleTimeString(),
+	// 				altitude: parsed?.position.altitude ?? null,
+	// 				velocity: parsed?.velocity.total ?? null,
+	// 				acceleration: parsed?.acceleration.total ?? null,
+	// 				battery: parsed?.batteryVoltage ?? null,
+	// 				roll: parsed?.orientation.roll ?? null,
+	// 				pitch: parsed?.orientation.pitch ?? null,
+	// 				yaw: parsed?.orientation.yaw ?? null,
+	// 			};
+	// 		}),
+	// 	[packets],
+	// );
 
 	return (
 		<ScreenTemplate
@@ -125,8 +113,17 @@ const ActiveFlightScreen = () => {
 				<div className="flex items-center gap-4">
 					Flight {flightDetails.name}{" "}
 					<span className="text-muted-foreground inline-flex items-center gap-1 text-sm">
-						(<span className="bg-primary inline-block size-3 animate-pulse rounded-full" />
-						live)
+						{connected ? (
+							<>
+								(<span className="bg-primary inline-block size-3 animate-pulse rounded-full" />
+								live)
+							</>
+						) : (
+							<span className="bg-muted-foreground text-muted flex animate-pulse items-center gap-1 rounded p-1">
+								<Loader2 className="size-4 animate-spin" />
+								Connecting to server...
+							</span>
+						)}
 					</span>
 				</div>
 			}
@@ -143,102 +140,26 @@ const ActiveFlightScreen = () => {
 						variant="destructive">
 						End flight
 					</ConfirmButton>
-					<div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
-						<span>Connected: {connected ? "Yes" : "No"}</span>
-						<span>•</span>
-						<span>Total packets: {packets.length}</span>
-						<span>•</span>
-						<span>Loss: {packetLoss}%</span>
-					</div>
 				</div>
-
 				<div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-					<div className="flex flex-col gap-4">
-						<div className="rounded border p-4">
-							<div className="text-sm font-semibold">Altitude</div>
-							<p className="text-muted-foreground text-xs">GPS altitude over time.</p>
-							<div className="mt-4 h-56">
-								<ResponsiveContainer
-									width="100%"
-									height="100%">
-									<AreaChart data={chartData}>
-										<CartesianGrid strokeDasharray="4 4" />
-										<XAxis
-											dataKey="index"
-											tick={{ fontSize: 10 }}
-										/>
-										<YAxis tick={{ fontSize: 10 }} />
-										<Tooltip />
-										<Area
-											type="monotone"
-											dataKey="altitude"
-											stroke="#2563eb"
-											fill="#93c5fd"
-										/>
-									</AreaChart>
-								</ResponsiveContainer>
-							</div>
-						</div>
-
-						<div className="rounded border p-4">
-							<div className="text-sm font-semibold">Velocity & Acceleration</div>
-							<p className="text-muted-foreground text-xs">Total magnitude telemetry.</p>
-							<div className="mt-4 h-56">
-								<ResponsiveContainer
-									width="100%"
-									height="100%">
-									<LineChart data={chartData}>
-										<CartesianGrid strokeDasharray="4 4" />
-										<XAxis
-											dataKey="index"
-											tick={{ fontSize: 10 }}
-										/>
-										<YAxis tick={{ fontSize: 10 }} />
-										<Tooltip />
-										<Legend />
-										<Line
-											type="monotone"
-											dataKey="velocity"
-											stroke="#10b981"
-											dot={false}
-										/>
-										<Line
-											type="monotone"
-											dataKey="acceleration"
-											stroke="#f97316"
-											dot={false}
-										/>
-									</LineChart>
-								</ResponsiveContainer>
-							</div>
-						</div>
-
-						<div className="rounded border p-4">
-							<div className="text-sm font-semibold">Battery Voltage</div>
-							<p className="text-muted-foreground text-xs">Live power readings.</p>
-							<div className="mt-4 h-40">
-								<ResponsiveContainer
-									width="100%"
-									height="100%">
-									<LineChart data={chartData}>
-										<CartesianGrid strokeDasharray="4 4" />
-										<XAxis
-											dataKey="index"
-											tick={{ fontSize: 10 }}
-										/>
-										<YAxis tick={{ fontSize: 10 }} />
-										<Tooltip />
-										<Line
-											type="monotone"
-											dataKey="battery"
-											stroke="#a855f7"
-											dot={false}
-										/>
-									</LineChart>
-								</ResponsiveContainer>
-							</div>
-						</div>
-					</div>
+					<LineChart
+						data={packetLoss.map((loss, index) => ({ index: index + 1, loss }))}
+						width={600}
+						height={300}>
+						<CartesianGrid strokeDasharray="4 4" />
+						<XAxis
+							dataKey="index"
+							tick={{ fontSize: 10 }}
+						/>
+						<YAxis tick={{ fontSize: 10 }} />
+						<Tooltip />
+						<Line
+							type="monotone"
+							dataKey="battery"
+							stroke="#a855f7"
+							dot={false}
+						/>
+					</LineChart>
 
 					<div className="flex flex-col gap-4">
 						<div className="rounded border p-4">
@@ -254,72 +175,35 @@ const ActiveFlightScreen = () => {
 										position={[4, 6, 8]}
 									/>
 									<RocketModel
-										roll={latestParsed?.orientation.roll}
-										pitch={latestParsed?.orientation.pitch}
-										yaw={latestParsed?.orientation.yaw}
+										roll={latestPacket?.parsedData.orientation.roll}
+										pitch={latestPacket?.parsedData.orientation.pitch}
+										yaw={latestPacket?.parsedData.orientation.yaw}
 									/>
 								</Canvas>
 							</div>
 							<div className="text-muted-foreground mt-3 grid grid-cols-3 gap-2 text-xs">
 								<div>
 									<p className="tracking-[0.2em] uppercase">Roll</p>
-									<p className="text-sm font-semibold">{latestParsed?.orientation.roll ?? "—"}°</p>
+									<p className="text-sm font-semibold">
+										{latestPacket?.parsedData.orientation.roll ?? "—"}°
+									</p>
 								</div>
 								<div>
 									<p className="tracking-[0.2em] uppercase">Pitch</p>
-									<p className="text-sm font-semibold">{latestParsed?.orientation.pitch ?? "—"}°</p>
+									<p className="text-sm font-semibold">
+										{latestPacket?.parsedData.orientation.pitch ?? "—"}°
+									</p>
 								</div>
 								<div>
 									<p className="tracking-[0.2em] uppercase">Yaw</p>
-									<p className="text-sm font-semibold">{latestParsed?.orientation.yaw ?? "—"}°</p>
-								</div>
-							</div>
-						</div>
-
-						<div className="rounded border p-4">
-							<div className="text-sm font-semibold">Latest Telemetry</div>
-							<p className="text-muted-foreground text-xs">Snapshot from the newest packet.</p>
-							<div className="mt-4 grid gap-3 text-sm">
-								<div className="flex items-center justify-between">
-									<span className="text-muted-foreground">Altitude</span>
-									<span className="font-semibold">{latestParsed?.position.altitude ?? "—"} m</span>
-								</div>
-								<div className="flex items-center justify-between">
-									<span className="text-muted-foreground">Velocity</span>
-									<span className="font-semibold">{latestParsed?.velocity.total ?? "—"} m/s</span>
-								</div>
-								<div className="flex items-center justify-between">
-									<span className="text-muted-foreground">Acceleration</span>
-									<span className="font-semibold">
-										{latestParsed?.acceleration.total ?? "—"} m/s²
-									</span>
-								</div>
-								<div className="flex items-center justify-between">
-									<span className="text-muted-foreground">Battery</span>
-									<span className="font-semibold">{latestParsed?.batteryVoltage ?? "—"} V</span>
-								</div>
-								<div className="flex items-center justify-between">
-									<span className="text-muted-foreground">Status</span>
-									<span className="font-semibold">
-										{latestParsed?.parachuteDeployed ? "Parachute deployed" : "In flight"}
-									</span>
-								</div>
-								<div className="flex items-center justify-between">
-									<span className="text-muted-foreground">Last packet</span>
-									<span className="font-semibold">
-										{latestPacket ? new Date(latestPacket.receivedAt).toLocaleTimeString() : "—"}
-									</span>
+									<p className="text-sm font-semibold">
+										{latestPacket?.parsedData.orientation.yaw ?? "—"}°
+									</p>
 								</div>
 							</div>
 						</div>
 					</div>
 				</div>
-
-				{packets.length === 0 && (
-					<div className="text-muted-foreground rounded border border-dashed p-4 text-sm">
-						No packets received yet. Charts and orientation will update once telemetry arrives.
-					</div>
-				)}
 			</div>
 		</ScreenTemplate>
 	);

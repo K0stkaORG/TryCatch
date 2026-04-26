@@ -1,12 +1,12 @@
-import { Packet } from "../models/packet";
+import { ValidPacket } from "../models/packet";
 
 // Data that comes FROM the client TO the server
 export type ClientToServerEvents = {};
 
 // Data that goes FROM the server TO the client
 export type ServerToClientEvents = {
-	initialSync: (data: { packets: Pick<Packet, "receivedAt" | "parsedData">[] }) => void;
-	packet: (data: { packet: Pick<Packet, "receivedAt" | "parsedData"> }) => void;
+	initialSync: (data: { packets: Pick<ValidPacket, "receivedAt" | "parsedData">[] }) => void;
+	packet: (data: { packet: Pick<ValidPacket, "receivedAt" | "parsedData"> }) => void;
 	packetLoss: (data: { percentLoss: number }) => void;
 	flightEnded: () => void;
 };
