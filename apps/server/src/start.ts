@@ -20,7 +20,7 @@ export async function startServer(port: number): Promise<HTTPServer> {
 		await db.execute(sql`SELECT NOW()`);
 		logger.info("Database connection established");
 	} catch (error) {
-		throw new ExtendedError("Failed to establish connection to the database", { error });
+		throw new ExtendedError("Failed to establish connection to the database", error);
 	}
 
 	// Create HTTP and Socket.IO servers
@@ -83,7 +83,7 @@ export async function startServer(port: number): Promise<HTTPServer> {
 		httpServer.on("error", (error: { code?: string }) => {
 			if (error.code === "EADDRINUSE")
 				reject(new ExtendedError(`Port ${port} is already in use. Please choose a different port.`, {}));
-			else reject(new ExtendedError(`Failed to start server`, { error }));
+			else reject(new ExtendedError(`Failed to start server`, error));
 		});
 	});
 }

@@ -1,8 +1,6 @@
 import { Flight, Packet, ValidPacket } from "@try-catch/shared-types";
 import { SerialPort } from "serialport";
 import { asc, db, eq, FlightPackets } from "~/db";
-import { ENV } from "~/env";
-import { decodePacket } from "./decodePacket";
 import { ExtendedError } from "./errors";
 import { ESPPathPicker } from "./espPathPicker";
 import { logger } from "./logger";
@@ -26,51 +24,6 @@ export class ActiveFlightHandler {
 		public readonly packets: Pick<Packet, "receivedAt" | "parsedData">[],
 	) {
 		this.interval = setInterval(() => {
-			if (ENV.NODE_ENV === "development")
-				return void ActiveFlightHandler.newPacketListener?.({
-					receivedAt: new Date(),
-					parsedData: {
-						position: {
-							latitude: Math.random() * 100,
-							longitude: Math.random() * 100,
-							altitude: Math.random() * 100,
-						},
-						velocity: {
-							latitude: Math.random() * 100,
-							longitude: Math.random() * 100,
-							altitude: Math.random() * 100,
-							total: Math.random() * 100,
-						},
-						acceleration: {
-							latitude: Math.random() * 100,
-							longitude: Math.random() * 100,
-							altitude: Math.random() * 100,
-							total: Math.random() * 100,
-						},
-
-						orientation: {
-							roll: Math.random() * 100,
-							pitch: Math.random() * 100,
-							yaw: Math.random() * 100,
-						},
-						angularVelocity: {
-							roll: Math.random() * 100,
-							pitch: Math.random() * 100,
-							yaw: Math.random() * 100,
-						},
-
-						barmetricAltitude: Math.random() * 100,
-
-						batteryVoltage: Math.random() * 100,
-
-						triboelectricVoltage: Math.random() * 100,
-
-						launchDetected: Math.random() >= 0.5,
-						apogeeDetected: Math.random() >= 0.5,
-						parachuteDeployed: Math.random() >= 0.5,
-					},
-				});
-
 			const packetLossCuttof = Date.now() - PACKET_LOSS_HEARTBEAT_INTERVAL_MS;
 
 			let packetsReceivedInInterval = 0;
@@ -92,14 +45,25 @@ export class ActiveFlightHandler {
 			ActiveFlightHandler.packetLossListener?.(percentLoss);
 		}, PACKET_LOSS_HEARTBEAT_INTERVAL_MS);
 
-		if (ENV.NODE_ENV === "development") {
-			logger.warn("Running in development environment, using mock data instead of connecting to ESP32.");
-			return;
-		}
-
 		this.port = new SerialPort({
 			path: ESPPathPicker.path,
 			baudRate: 115200,
+			dataBits: 8,
+			stopBits: 1,
+			parity: "none",
+		});
+
+		this.port.on("open", () => {
+			logger.info("Serial port opened successfully.");
+			this.port?.set({ dtr: true, rts: true });
+		});
+
+		this.port.on("readable", () => {
+			logger.info(`Received data from ESP32:`, this.port?.read().toString());
+		});
+
+		this.port.on("error", (data) => {
+			logger.error(data);
 		});
 
 		this.port.on("data", (data) => {
