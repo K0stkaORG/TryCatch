@@ -1,13 +1,16 @@
 import { Flight, Packet, ValidPacket } from "@try-catch/shared-types";
 import { SerialPort } from "serialport";
 import { asc, db, eq, FlightPackets } from "~/db";
+import { ENV } from "~/env";
+import { decodePacket } from "./decodePacket";
 import { ExtendedError } from "./errors";
 import { ESPPathPicker } from "./espPathPicker";
 import { logger } from "./logger";
+import { TelemetryEmulator } from "./telemetryEmulator";
 
 const COMMIT_EVERY_N_PACKETS = 10;
-const EXPECTED_PACKETS_PER_SECOND = 10;
-const PACKET_LOSS_HEARTBEAT_INTERVAL_MS = 100;
+const EXPECTED_PACKETS_PER_SECOND = 5;
+const PACKET_LOSS_HEARTBEAT_INTERVAL_MS = 1000;
 
 export class ActiveFlightHandler {
 	private static _instance: ActiveFlightHandler | undefined;
@@ -15,15 +18,24 @@ export class ActiveFlightHandler {
 	private static packetLossListener: ((percentLoss: number) => void) | undefined;
 	private static flightEndListener: (() => void) | undefined;
 
-	private port: SerialPort | undefined;
-	private interval: NodeJS.Timeout;
+	private packetLossInterval: NodeJS.Timeout;
 	private commitBuffer: Pick<Packet, "rawBytes" | "receivedAt" | "parsedData">[] = [];
+
+	private port: SerialPort | undefined;
+	private telemetryEmulator: TelemetryEmulator | undefined;
 
 	private constructor(
 		public readonly flight: Pick<Flight, "id" | "name">,
 		public readonly packets: Pick<Packet, "receivedAt" | "parsedData">[],
 	) {
-		this.interval = setInterval(() => {
+		this.packetLossInterval = this.setupPacketLossDetection();
+
+		if (ENV.EMULATED_TELEMETRY) this.setupTelemetryEmulator();
+		else this.setupSerialPort();
+	}
+
+	private setupPacketLossDetection(): NodeJS.Timeout {
+		return setInterval(() => {
 			const packetLossCuttof = Date.now() - PACKET_LOSS_HEARTBEAT_INTERVAL_MS;
 
 			let packetsReceivedInInterval = 0;
@@ -44,7 +56,25 @@ export class ActiveFlightHandler {
 
 			ActiveFlightHandler.packetLossListener?.(percentLoss);
 		}, PACKET_LOSS_HEARTBEAT_INTERVAL_MS);
+	}
 
+	private setupTelemetryEmulator() {
+		this.telemetryEmulator = new TelemetryEmulator(EXPECTED_PACKETS_PER_SECOND, (packet) => {
+			const now = new Date();
+
+			this.packets.push({
+				receivedAt: new Date(),
+				parsedData: packet,
+			});
+
+			ActiveFlightHandler.newPacketListener?.({
+				receivedAt: now,
+				parsedData: packet,
+			});
+		});
+	}
+
+	private setupSerialPort() {
 		this.port = new SerialPort({
 			path: ESPPathPicker.path,
 			baudRate: 115200,
@@ -120,7 +150,8 @@ export class ActiveFlightHandler {
 		if (!ActiveFlightHandler._instance) return;
 
 		ActiveFlightHandler._instance.port?.destroy();
-		clearInterval(ActiveFlightHandler._instance.interval);
+		ActiveFlightHandler._instance.telemetryEmulator?.stop();
+		clearInterval(ActiveFlightHandler._instance.packetLossInterval);
 		ActiveFlightHandler.flightEndListener?.();
 
 		logger.info(`Stopping ActiveFlightHandler for flight ID ${ActiveFlightHandler._instance.flight.id}...`);

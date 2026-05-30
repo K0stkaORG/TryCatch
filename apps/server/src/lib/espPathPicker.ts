@@ -4,8 +4,6 @@ import { ENV } from "~/env";
 import { ExtendedError } from "./errors";
 import { logger } from "./logger";
 
-const DEV_ESP_PATH = "COM5";
-
 export class ESPPathPicker {
 	private static _path: string | undefined;
 
@@ -17,15 +15,21 @@ export class ESPPathPicker {
 	}
 
 	public static async pickPath() {
+		if (ENV.EMULATED_TELEMETRY) {
+			ESPPathPicker._path = "EMULATED_TELEMETRY";
+			logger.warn("Running in emulated telemetry mode");
+			return;
+		}
+
 		const allPorts = await SerialPort.list();
 
 		if (allPorts.length === 0)
 			throw new ExtendedError("No serial ports found. Please connect the ESP32 and try again.");
 
-		if (ENV.NODE_ENV === "development") {
-			if (allPorts.some((port) => port.path === DEV_ESP_PATH)) {
-				ESPPathPicker._path = DEV_ESP_PATH;
-				logger.warn(`Running in dev environment, auto-selecting path: ${DEV_ESP_PATH}`);
+		if (ENV.NODE_ENV === "development" && ENV.DEV_ESP_PATH) {
+			if (allPorts.some((port) => port.path === ENV.DEV_ESP_PATH)) {
+				ESPPathPicker._path = ENV.DEV_ESP_PATH;
+				logger.warn(`Running in dev environment, auto-selecting path: ${ENV.DEV_ESP_PATH}`);
 			} else
 				throw new ExtendedError(
 					"DEV_ESP_PATH not found in serial ports. Please connect the ESP32 and try again.",

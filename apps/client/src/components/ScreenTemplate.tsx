@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 import { ReactNode } from "react";
 import { Link } from "react-router";
@@ -7,9 +8,10 @@ interface ScreenTemplateProps {
 	title: ReactNode;
 	backPath?: string;
 	children: ReactNode;
+	className?: string;
 }
 
-const ScreenTemplate = ({ title, backPath, children }: ScreenTemplateProps) => {
+const ScreenTemplate = ({ title, backPath, children, className }: ScreenTemplateProps) => {
 	return (
 		<div className="relative grid h-dvh w-dvw grid-rows-[auto_1fr]">
 			<header className="border-primary relative flex items-center justify-between overflow-hidden border-b-2 py-2">
@@ -48,7 +50,7 @@ const ScreenTemplate = ({ title, backPath, children }: ScreenTemplateProps) => {
 					</div>
 				</Link>
 			</header>
-			<div className="relative size-full overflow-auto px-6 py-4">{children}</div>
+			<div className={cn("relative size-full overflow-auto px-4 py-3", className)}>{children}</div>
 		</div>
 	);
 };

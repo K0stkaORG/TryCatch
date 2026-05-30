@@ -1,78 +1,19 @@
+import { Loader2, OctagonX } from "lucide-react";
+
+import { ExperimentGraph } from "@/components/active-flight/ExperimentGraph";
+import { Map } from "@/components/active-flight/Map";
+import { PacketLossGraph } from "@/components/active-flight/PacketLossGraph";
+import { PositionGraphs } from "@/components/active-flight/PositionGraphs";
+import { RocketModel } from "@/components/active-flight/RocketModel";
+import { StatusLights } from "@/components/active-flight/StatusLights";
+import { TelemetryPanel } from "@/components/active-flight/TelemetryPanel";
 import ConfirmButton from "@/components/ConfirmButton";
 import ScreenTemplate from "@/components/ScreenTemplate";
 import { request } from "@/lib/server";
 import { usePackets } from "@/lib/socket";
-import { Canvas } from "@react-three/fiber";
 import { ActiveFlightDataResponse } from "@try-catch/shared-types";
-import { Loader2 } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { useLoaderData } from "react-router";
-import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts";
-type RocketModelProps = {
-	roll?: number | null;
-	pitch?: number | null;
-	yaw?: number | null;
-};
-
-const toRad = (value: number) => (value * Math.PI) / 180;
-
-const RocketModel = ({ roll, pitch, yaw }: RocketModelProps) => {
-	const rotation = useMemo<[number, number, number]>(
-		() => [toRad(pitch ?? 0), toRad(yaw ?? 0), toRad(roll ?? 0)],
-		[roll, pitch, yaw],
-	);
-
-	const bodyMaterial = useMemo(
-		() => ({
-			color: "#ff00a1",
-			metalness: 0.2,
-			roughness: 0.4,
-		}),
-		[],
-	);
-
-	const noseMaterial = useMemo(
-		() => ({
-			color: "#000000",
-			metalness: 0.2,
-			roughness: 0.35,
-		}),
-		[],
-	);
-
-	const finMaterial = useMemo(
-		() => ({
-			color: "#000000",
-			metalness: 0.1,
-			roughness: 0.5,
-		}),
-		[],
-	);
-
-	return (
-		<group rotation={rotation}>
-			<mesh>
-				<cylinderGeometry args={[0.45, 0.45, 2.8, 24, 1, false]} />
-				<meshStandardMaterial {...bodyMaterial} />
-			</mesh>
-
-			<mesh position={[0, 1.9, 0]}>
-				<coneGeometry args={[0.5, 1, 24]} />
-				<meshStandardMaterial {...noseMaterial} />
-			</mesh>
-
-			<mesh position={[-0.5, -1.2, 0]}>
-				<boxGeometry args={[0.6, 0.6, 0.1]} />
-				<meshStandardMaterial {...finMaterial} />
-			</mesh>
-
-			<mesh position={[0.5, -1.2, 0]}>
-				<boxGeometry args={[0.6, 0.6, 0.1]} />
-				<meshStandardMaterial {...finMaterial} />
-			</mesh>
-		</group>
-	);
-};
 
 const ActiveFlightScreen = () => {
 	const flightDetails = useLoaderData<ActiveFlightDataResponse>();
@@ -85,37 +26,23 @@ const ActiveFlightScreen = () => {
 		[],
 	);
 
-	const { connected, packets, packetLoss } = usePackets(flightDetails.id);
-	const latestPacket = packets[packets.length - 1] ?? null;
+	const { connected, packetStreams, packetHeartbeat, packetLossHeartbeat } = usePackets(flightDetails.id);
 
-	// const chartData = useMemo(
-	// 	() =>
-	// 		packets.map((packet, index) => {
-	// 			const parsed = packet.parsedData;
-	// 			return {
-	// 				index: index + 1,
-	// 				time: new Date(packet.receivedAt).toLocaleTimeString(),
-	// 				altitude: parsed?.position.altitude ?? null,
-	// 				velocity: parsed?.velocity.total ?? null,
-	// 				acceleration: parsed?.acceleration.total ?? null,
-	// 				battery: parsed?.batteryVoltage ?? null,
-	// 				roll: parsed?.orientation.roll ?? null,
-	// 				pitch: parsed?.orientation.pitch ?? null,
-	// 				yaw: parsed?.orientation.yaw ?? null,
-	// 			};
-	// 		}),
-	// 	[packets],
-	// );
+	const altitudeGPS = packetStreams.position.altitude.last;
+	const altitudeBaro = packetStreams.barometricAltitude.last;
+	const speedTotal = packetStreams.velocity.total.last;
+	const speedVertical = packetStreams.velocity.altitude.last;
+	const coordinates = `${packetStreams.position.latlong.last[0].toFixed(5)}, ${packetStreams.position.latlong.last[1].toFixed(5)}`;
 
 	return (
 		<ScreenTemplate
 			title={
-				<div className="flex items-center gap-4">
+				<div className="flex items-center gap-3">
 					Flight {flightDetails.name}{" "}
-					<span className="text-muted-foreground inline-flex items-center gap-1 text-sm">
+					<span className="text-muted-foreground inline-flex items-center gap-2 text-sm">
 						{connected ? (
 							<>
-								(<span className="bg-primary inline-block size-3 animate-pulse rounded-full" />
+								(<span className="bg-primary inline-block size-2.5 animate-pulse rounded-full" />
 								live)
 							</>
 						) : (
@@ -127,82 +54,88 @@ const ActiveFlightScreen = () => {
 					</span>
 				</div>
 			}
+			className="from-primary/20 to-primary/30 bg-linear-to-br via-transparent"
 			backPath="/">
-			<div className="flex flex-col gap-4">
-				<div className="flex flex-wrap items-center justify-between gap-3">
-					<ConfirmButton
-						onClick={handleStopFlight}
-						confirmMessage="Are you sure you want to end the flight?"
-						confirmButtonText="End flight"
-						cancelButtonText="Cancel"
-						className="gap-2"
-						size="lg"
-						variant="destructive">
-						End flight
-					</ConfirmButton>
-				</div>
-				<div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-					<LineChart
-						data={packetLoss.map((loss, index) => ({ index: index + 1, loss }))}
-						width={600}
-						height={300}>
-						<CartesianGrid strokeDasharray="4 4" />
-						<XAxis
-							dataKey="index"
-							tick={{ fontSize: 10 }}
-						/>
-						<YAxis tick={{ fontSize: 10 }} />
-						<Tooltip />
-						<Line
-							type="monotone"
-							dataKey="battery"
-							stroke="#a855f7"
-							dot={false}
-						/>
-					</LineChart>
-
-					<div className="flex flex-col gap-4">
-						<div className="rounded border p-4">
-							<div className="text-sm font-semibold">Rocket Orientation</div>
-							<p className="text-muted-foreground text-xs">3D attitude visualization.</p>
-							<div className="mt-4 h-64 w-full overflow-hidden rounded bg-gradient-to-br from-slate-50 to-slate-100">
-								<Canvas
-									camera={{ fov: 50, position: [0, 0.8, 6] }}
-									dpr={[1, 2]}>
-									<ambientLight intensity={0.7} />
-									<directionalLight
-										intensity={0.8}
-										position={[4, 6, 8]}
-									/>
-									<RocketModel
-										roll={latestPacket?.parsedData.orientation.roll}
-										pitch={latestPacket?.parsedData.orientation.pitch}
-										yaw={latestPacket?.parsedData.orientation.yaw}
-									/>
-								</Canvas>
-							</div>
-							<div className="text-muted-foreground mt-3 grid grid-cols-3 gap-2 text-xs">
-								<div>
-									<p className="tracking-[0.2em] uppercase">Roll</p>
-									<p className="text-sm font-semibold">
-										{latestPacket?.parsedData.orientation.roll ?? "—"}°
-									</p>
-								</div>
-								<div>
-									<p className="tracking-[0.2em] uppercase">Pitch</p>
-									<p className="text-sm font-semibold">
-										{latestPacket?.parsedData.orientation.pitch ?? "—"}°
-									</p>
-								</div>
-								<div>
-									<p className="tracking-[0.2em] uppercase">Yaw</p>
-									<p className="text-sm font-semibold">
-										{latestPacket?.parsedData.orientation.yaw ?? "—"}°
-									</p>
-								</div>
+			<div className="relative grid min-h-full w-full gap-3 rounded-2xl p-2 xl:grid-cols-[6fr_4fr] xl:grid-rows-[1fr_1fr]">
+				<div className="relative row-span-2 grid size-full grid-rows-[auto_auto_auto_auto] gap-3 xl:grid-rows-[auto_1fr_1fr_auto]">
+					<div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
+						<div className="bg-card/60 border-border/60 rounded-xl border px-3 py-2">
+							<div className="text-muted-foreground text-[10px] uppercase">Altitude (GPS/Baro)</div>
+							<div className="text-lg leading-tight font-semibold">
+								{altitudeGPS.toFixed(1)} / {altitudeBaro.toFixed(1)} m
 							</div>
 						</div>
+						<div className="bg-card/60 border-border/60 rounded-xl border px-3 py-2">
+							<div className="text-muted-foreground text-[10px] uppercase">Speed (vertical/total)</div>
+							<div className="text-lg leading-tight font-semibold">
+								{speedVertical.toFixed(1)} / {speedTotal.toFixed(1)} m/s
+							</div>
+						</div>
+						<div className="bg-card/60 border-border/60 rounded-xl border px-3 py-2">
+							<div className="text-muted-foreground text-[10px] uppercase">Coordinates</div>
+							<div className="text-lg leading-tight font-semibold">{coordinates}</div>
+						</div>
+						<ConfirmButton
+							onClick={handleStopFlight}
+							confirmMessage="Are you sure you want to end the flight? This action cannot be undone."
+							confirmButtonText="End flight"
+							cancelButtonText="Cancel"
+							className="bg-destructive/20 border-destructive/40 hover:bg-destructive/30 h-10 gap-2 rounded-xl border xl:h-full"
+							size="lg">
+							<OctagonX />
+							End flight
+						</ConfirmButton>
 					</div>
+
+					<PositionGraphs
+						chartData={packetStreams.positionGraph}
+						packetHeartbeat={packetHeartbeat}
+					/>
+
+					<ExperimentGraph
+						triboelectricVoltage={packetStreams.triboelectricVoltage}
+						packetHeartbeat={packetHeartbeat}
+					/>
+
+					<div className="grid gap-3 xl:grid-cols-2">
+						<PacketLossGraph
+							packetLoss={packetStreams.packetLoss}
+							packetLossHeartbeat={packetLossHeartbeat}
+						/>
+						<StatusLights
+							launchDetected={packetStreams.flags.launchDetected.last}
+							apogeeDetected={packetStreams.flags.apogeeDetected.last}
+							parachuteDeployed={packetStreams.flags.parachuteDeployed.last}
+							batteryVoltage={packetStreams.batteryVoltage.last}
+						/>
+					</div>
+				</div>
+				<TelemetryPanel title="Orientation">
+					<div className="h-full overflow-hidden rounded-xl border">
+						<RocketModel
+							roll={packetStreams.orientation.roll.last}
+							pitch={packetStreams.orientation.pitch.last}
+							yaw={packetStreams.orientation.yaw.last}
+						/>
+					</div>
+				</TelemetryPanel>
+				<div className="min-h-80">
+					<Map
+						position={{
+							latlong: packetStreams.position.latlong,
+							altitude: packetStreams.position.altitude,
+						}}
+						velocity={{
+							latitude: packetStreams.velocity.latitude,
+							longitude: packetStreams.velocity.longitude,
+						}}
+						acceleration={{
+							latitude: packetStreams.acceleration.latitude,
+							longitude: packetStreams.acceleration.longitude,
+						}}
+						parachudeDeployed={packetStreams.flags.parachuteDeployed.last}
+						packetHeartbeat={packetHeartbeat}
+					/>
 				</div>
 			</div>
 		</ScreenTemplate>

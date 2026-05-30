@@ -10,6 +10,8 @@ const loadEnv = () => {
 				NODE_ENV: z.enum(["development", "production"]).readonly().default("development"),
 				DATABASE_URL: z.string().readonly(),
 				SERVER_PORT: z.coerce.number().readonly().default(3000),
+				EMULATED_TELEMETRY: z.coerce.boolean().readonly().default(false),
+				DEV_ESP_PATH: z.string().optional().readonly(),
 			})
 			.parse(process.env);
 	} catch (error) {
