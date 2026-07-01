@@ -1,5 +1,9 @@
 packages:
-    - apps/*
-    - packages/*
+  - apps/*
+  - packages/*
+
+allowBuilds:
+  '@serialport/bindings-cpp': true
+  esbuild: true
 
 nodeLinker: hoisted

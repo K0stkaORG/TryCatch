@@ -88,21 +88,17 @@ export class ActiveFlightHandler {
 			this.port?.set({ dtr: true, rts: true });
 		});
 
-		this.port.on("readable", () => {
-			logger.info(`Received data from ESP32:`, this.port?.read().toString());
-		});
-
 		this.port.on("error", (data) => {
 			logger.error(data);
 		});
 
-		this.port.on("data", (data) => {
-			logger.info(`Received data from ESP32:`, data.toString());
-
+		this.port.on("data", (data: Buffer) => {
 			const packetData = decodePacket(data);
+			const hexString = data.toString("hex").toUpperCase();
+			console.log(hexString);
 
 			this.commitBuffer.push({
-				rawBytes: data,
+				rawBytes: hexString,
 				receivedAt: new Date(),
 				parsedData: packetData,
 			});
@@ -169,6 +165,15 @@ export class ActiveFlightHandler {
 
 	public static onFlightEnd(listener: () => void) {
 		this.flightEndListener = listener;
+	}
+
+	public sendServoCommand(bytes: number[]) {
+		if (!this.port || !this.port.isOpen) {
+			logger.warn("Servo command ignored: serial port not open.");
+			return;
+		}
+
+		this.port.write(Buffer.from(bytes));
 	}
 
 	private async commitPackets() {

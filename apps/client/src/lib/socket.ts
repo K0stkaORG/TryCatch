@@ -87,6 +87,12 @@ export const usePackets = (flightId: Flight["id"]) => {
 			1,
 		),
 		packetLoss: new CircularBuffer(PACKET_LOSS_BUFFER_SIZE, 0),
+		deadReckoningHistory: new CircularBuffer(PACKET_BUFFER_SIZE, {
+			receivedAt: 0,
+			position: { latitude: 0, longitude: 0, altitude: 0 },
+			velocity: { latitude: 0, longitude: 0, altitude: 0 },
+			acceleration: { latitude: 0, longitude: 0, altitude: 0 },
+		}),
 	});
 
 	const handlePacket = (packet: Pick<ValidPacket, "receivedAt" | "parsedData">) => {
@@ -134,6 +140,25 @@ export const usePackets = (flightId: Flight["id"]) => {
 		packetStreams.triboelectricVoltage.push({
 			receivedAt,
 			value: packet.parsedData.triboelectricVoltage,
+		});
+
+		packetStreams.deadReckoningHistory.push({
+			receivedAt,
+			position: {
+				latitude: packet.parsedData.position.latitude,
+				longitude: packet.parsedData.position.longitude,
+				altitude: packet.parsedData.position.altitude,
+			},
+			velocity: {
+				latitude: packet.parsedData.velocity.latitude,
+				longitude: packet.parsedData.velocity.longitude,
+				altitude: packet.parsedData.velocity.altitude,
+			},
+			acceleration: {
+				latitude: packet.parsedData.acceleration.latitude,
+				longitude: packet.parsedData.acceleration.longitude,
+				altitude: packet.parsedData.acceleration.altitude,
+			},
 		});
 
 		setPacketHeartbeat(Date.now());

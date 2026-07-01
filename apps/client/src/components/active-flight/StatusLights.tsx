@@ -1,3 +1,6 @@
+import { Button } from "@/components/ui/button";
+import { request } from "@/lib/server";
+import type { ServoCommandRequest } from "@try-catch/shared-types";
 import { Mountain, Rocket, Umbrella } from "lucide-react";
 import { TelemetryPanel } from "./TelemetryPanel";
 
@@ -35,21 +38,59 @@ export const StatusLights = ({
 		{ key: "parachute", value: parachuteDeployed, title: "Parachute", Icon: Umbrella },
 	];
 
+	const handleStowServo = () => {
+		void request<ServoCommandRequest, void>({
+			path: "/servo/command",
+			data: { bytes: [0x47, 0x43, 0x55, 0x00] },
+			showPendingToast: false,
+		});
+	};
+
+	const handleDeployServo = () => {
+		void request<ServoCommandRequest, void>({
+			path: "/servo/command",
+			data: { bytes: [0x47, 0x43, 0xaa, 0x00] },
+			showPendingToast: false,
+		});
+	};
+
 	return (
 		<TelemetryPanel
 			title="Status"
 			className="flex flex-col gap-4">
 			<div className="grid grid-cols-3 gap-2">
-				{lights.map((light) => (
-					<div
-						key={light.key}
-						className={`bg-muted/30 flex items-center justify-center gap-2 rounded-lg border px-2 py-2 ${
-							light.value ? "text-emerald-300" : "text-muted-foreground"
-						}`}>
-						<light.Icon className="size-4" />
-						{light.title}
-					</div>
-				))}
+				{lights.map((light) => {
+					const isParachute = light.key === "parachute";
+
+					return (
+						<div
+							key={light.key}
+							className={`bg-muted/30 flex items-center justify-center rounded-lg border px-2 py-2 ${
+								light.value ? "text-emerald-300" : "text-muted-foreground"
+							} ${isParachute ? "flex-col gap-2" : "gap-2"}`}>
+							<div className="flex items-center gap-2">
+								<light.Icon className="size-4" />
+								{light.title}
+							</div>
+							{isParachute && (
+								<div className="flex gap-2">
+									<Button
+										size="xs"
+										variant="outline"
+										onClick={handleStowServo}>
+										Stow
+									</Button>
+									<Button
+										size="xs"
+										variant="outline"
+										onClick={handleDeployServo}>
+										Deploy
+									</Button>
+								</div>
+							)}
+						</div>
+					);
+				})}
 			</div>
 
 			<div className="flex items-center gap-2">

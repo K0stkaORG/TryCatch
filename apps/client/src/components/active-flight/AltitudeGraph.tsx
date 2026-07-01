@@ -1,4 +1,4 @@
-import { formatAxisTime, formatShortTime, getSparseTimeTicks } from "@/components/active-flight/telemetry-utils";
+import { formatAxisTime, formatShortTime } from "@/components/active-flight/telemetry-utils";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { TelemetryPanel } from "@/components/active-flight/TelemetryPanel";
@@ -6,32 +6,24 @@ import { CircularBuffer } from "@/lib/circularBuffer";
 import { useMemo } from "react";
 
 interface AltitudeGraphProps {
-	receivedAt: CircularBuffer<number>;
-	altitudeGPS: CircularBuffer<number>;
-	altitudeBarometric: CircularBuffer<number>;
+	chartData: CircularBuffer<{
+		receivedAt: number;
+		altitudeGPS: number;
+		altitudeBarometric: number;
+	}>;
 	packetHeartbeat: number;
 }
 
-export const AltitudeGraph = ({ receivedAt, altitudeGPS, altitudeBarometric, packetHeartbeat }: AltitudeGraphProps) => {
-	// eslint-disable-next-line react-hooks/preserve-manual-memoization, react-hooks/exhaustive-deps
-	const chartData = useMemo(
-		() =>
-			altitudeGPS.buffer.map((gps, index) => ({
-				receivedAt: receivedAt.buffer[index] ?? 0,
-				positionAltitude: gps,
-				barometricAltitude: altitudeBarometric.buffer[index] ?? 0,
-			})),
-		[packetHeartbeat],
-	);
+const formatTick = (value: number) => {
+	if (!Number.isFinite(value)) return "";
+	if (Math.abs(value) >= 100) return value.toFixed(0);
+	if (Math.abs(value) >= 10) return value.toFixed(1);
+	return value.toFixed(2);
+};
 
-	const timeTicks = useMemo(
-		() =>
-			getSparseTimeTicks(
-				chartData.map((point) => point.receivedAt),
-				4,
-			),
-		[chartData],
-	);
+export const AltitudeGraph = ({ chartData, packetHeartbeat }: AltitudeGraphProps) => {
+	// eslint-disable-next-line react-hooks/preserve-manual-memoization, react-hooks/exhaustive-deps
+	const chartDataBuffer = useMemo(() => [...chartData.buffer], [packetHeartbeat]);
 
 	return (
 		<TelemetryPanel
@@ -51,7 +43,7 @@ export const AltitudeGraph = ({ receivedAt, altitudeGPS, altitudeBarometric, pac
 			className="h-50">
 			<ResponsiveContainer>
 				<LineChart
-					data={chartData}
+					data={chartDataBuffer}
 					margin={{ top: 4, right: 8, left: 2, bottom: 0 }}>
 					<CartesianGrid
 						strokeDasharray="3 3"
@@ -61,9 +53,7 @@ export const AltitudeGraph = ({ receivedAt, altitudeGPS, altitudeBarometric, pac
 					<XAxis
 						dataKey="receivedAt"
 						type="number"
-						scale="time"
 						domain={["dataMin", "dataMax"]}
-						ticks={timeTicks}
 						tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
 						tickMargin={8}
 						tickFormatter={formatAxisTime}
@@ -74,10 +64,12 @@ export const AltitudeGraph = ({ receivedAt, altitudeGPS, altitudeBarometric, pac
 						unit=" m"
 						width={58}
 						tickMargin={6}
+						tickFormatter={formatTick}
 					/>
 					<Tooltip
 						labelStyle={{ color: "var(--foreground)" }}
 						labelFormatter={(value) => formatShortTime(value as number)}
+						formatter={(value) => (value as number).toFixed(2) + "m"}
 						contentStyle={{
 							backgroundColor: "var(--card)",
 							borderColor: "var(--border)",
@@ -86,7 +78,7 @@ export const AltitudeGraph = ({ receivedAt, altitudeGPS, altitudeBarometric, pac
 					/>
 					<Line
 						type="monotone"
-						dataKey="positionAltitude"
+						dataKey="altitudeGPS"
 						name="GPS"
 						stroke="var(--chart-1)"
 						strokeWidth={2.2}
@@ -95,7 +87,7 @@ export const AltitudeGraph = ({ receivedAt, altitudeGPS, altitudeBarometric, pac
 					/>
 					<Line
 						type="monotone"
-						dataKey="barometricAltitude"
+						dataKey="altitudeBarometric"
 						name="Barometric"
 						stroke="var(--chart-2)"
 						strokeWidth={2}

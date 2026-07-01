@@ -9,10 +9,20 @@ import { StatusLights } from "@/components/active-flight/StatusLights";
 import { TelemetryPanel } from "@/components/active-flight/TelemetryPanel";
 import ConfirmButton from "@/components/ConfirmButton";
 import ScreenTemplate from "@/components/ScreenTemplate";
+import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
+import { computeDeadReckoningFromHistory } from "@/lib/deadReckoning";
 import { request } from "@/lib/server";
 import { usePackets } from "@/lib/socket";
 import { ActiveFlightDataResponse } from "@try-catch/shared-types";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLoaderData } from "react-router";
 
 const ActiveFlightScreen = () => {
@@ -32,7 +42,44 @@ const ActiveFlightScreen = () => {
 	const altitudeBaro = packetStreams.barometricAltitude.last;
 	const speedTotal = packetStreams.velocity.total.last;
 	const speedVertical = packetStreams.velocity.altitude.last;
-	const coordinates = `${packetStreams.position.latlong.last[0].toFixed(5)}, ${packetStreams.position.latlong.last[1].toFixed(5)}`;
+	const lastLatitude = packetStreams.position.latlong.last[0];
+	const lastLongitude = packetStreams.position.latlong.last[1];
+	const coordinates = `${lastLatitude.toFixed(5)}, ${lastLongitude.toFixed(5)}`;
+	const lastPacketAt = packetHeartbeat;
+
+	const [deadReckoning, setDeadReckoning] = useState<
+		| (NonNullable<ReturnType<typeof computeDeadReckoningFromHistory>> & {
+				ageMs: number;
+				updatedAt: number;
+		  })
+		| null
+	>(null);
+
+	useEffect(() => {
+		const updateDeadReckoning = () => {
+			if (!lastPacketAt) return;
+
+			const ageMs = Math.max(0, Date.now() - lastPacketAt);
+			const estimate = computeDeadReckoningFromHistory(packetStreams.deadReckoningHistory.buffer, Date.now());
+
+			if (!estimate) return;
+
+			setDeadReckoning({
+				...estimate,
+				ageMs,
+				updatedAt: Date.now(),
+			});
+		};
+
+		updateDeadReckoning();
+		const interval = window.setInterval(updateDeadReckoning, 250);
+
+		return () => window.clearInterval(interval);
+	}, [lastPacketAt, packetStreams.deadReckoningHistory]);
+
+	const deadReckoningSpeed = deadReckoning
+		? Math.hypot(deadReckoning.velocity.latitude, deadReckoning.velocity.longitude, deadReckoning.velocity.altitude)
+		: 0;
 
 	return (
 		<ScreenTemplate
@@ -58,7 +105,7 @@ const ActiveFlightScreen = () => {
 			backPath="/">
 			<div className="relative grid min-h-full w-full gap-3 rounded-2xl p-2 xl:grid-cols-[6fr_4fr] xl:grid-rows-[1fr_1fr]">
 				<div className="relative row-span-2 grid size-full grid-rows-[auto_auto_auto_auto] gap-3 xl:grid-rows-[auto_1fr_1fr_auto]">
-					<div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
+					<div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto_auto]">
 						<div className="bg-card/60 border-border/60 rounded-xl border px-3 py-2">
 							<div className="text-muted-foreground text-[10px] uppercase">Altitude (GPS/Baro)</div>
 							<div className="text-lg leading-tight font-semibold">
@@ -75,6 +122,58 @@ const ActiveFlightScreen = () => {
 							<div className="text-muted-foreground text-[10px] uppercase">Coordinates</div>
 							<div className="text-lg leading-tight font-semibold">{coordinates}</div>
 						</div>
+						<Dialog>
+							<DialogTrigger asChild>
+								<Button
+									variant="outline"
+									className="h-10 rounded-xl border xl:h-full">
+									Dead reckoning
+								</Button>
+							</DialogTrigger>
+							<DialogContent>
+								<DialogHeader>
+									<DialogTitle>Dead reckoning estimate</DialogTitle>
+									<DialogDescription>
+										Extrapolated from the last packet using constant acceleration.
+									</DialogDescription>
+								</DialogHeader>
+								{deadReckoning ? (
+									<div className="grid gap-3 text-sm">
+										<div className="flex items-center justify-between">
+											<span className="text-muted-foreground">Time since last packet</span>
+											<span>{(deadReckoning.ageMs / 1000).toFixed(2)} s</span>
+										</div>
+										<div className="flex items-center justify-between">
+											<span className="text-muted-foreground">Estimated latitude</span>
+											<span>{deadReckoning.position.latitude.toFixed(5)}</span>
+										</div>
+										<div className="flex items-center justify-between">
+											<span className="text-muted-foreground">Estimated longitude</span>
+											<span>{deadReckoning.position.longitude.toFixed(5)}</span>
+										</div>
+										<div className="flex items-center justify-between">
+											<span className="text-muted-foreground">Estimated altitude</span>
+											<span>{deadReckoning.position.altitude.toFixed(1)} m</span>
+										</div>
+										<div className="border-border/60 my-1 border-t" />
+										<div className="flex items-center justify-between">
+											<span className="text-muted-foreground">Estimated speed</span>
+											<span>{deadReckoningSpeed.toFixed(2)} m/s</span>
+										</div>
+										<div className="flex items-center justify-between">
+											<span className="text-muted-foreground">Velocity (lat/lon/alt)</span>
+											<span>
+												{deadReckoning.velocity.latitude.toFixed(2)} /{" "}
+												{deadReckoning.velocity.longitude.toFixed(2)} /{" "}
+												{deadReckoning.velocity.altitude.toFixed(2)} m/s
+											</span>
+										</div>
+									</div>
+								) : (
+									<div className="text-muted-foreground text-sm">Waiting for first packet...</div>
+								)}
+							</DialogContent>
+						</Dialog>
 						<ConfirmButton
 							onClick={handleStopFlight}
 							confirmMessage="Are you sure you want to end the flight? This action cannot be undone."

@@ -3,6 +3,25 @@ export type ValidPacket = {
 	flightId: number;
 	rawBytes: string;
 	parsedData: {
+		timestampMs: number;
+		packetId: number;
+		raw: {
+			stateFlags: number;
+			accelX: number;
+			accelY: number;
+			accelZ: number;
+			gyroX: number;
+			gyroY: number;
+			gyroZ: number;
+			pressureScaled: number;
+			triboVoltageRaw: number;
+			batteryVoltageRaw: number;
+			gpsLatOffset: number;
+			gpsLonOffset: number;
+			gpsAltMeters: number;
+			ky024Analog: number;
+		};
+
 		position: {
 			latitude: number;
 			longitude: number;
