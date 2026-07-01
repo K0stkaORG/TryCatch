@@ -9,8 +9,8 @@ import { logger } from "./logger";
 import { TelemetryEmulator } from "./telemetryEmulator";
 
 const COMMIT_EVERY_N_PACKETS = 10;
-const EXPECTED_PACKETS_PER_SECOND = 5;
-const PACKET_LOSS_HEARTBEAT_INTERVAL_MS = 1000;
+const EXPECTED_PACKETS_PER_SECOND = 2;
+const PACKET_LOSS_HEARTBEAT_INTERVAL_MS = 5000;
 
 export class ActiveFlightHandler {
 	private static _instance: ActiveFlightHandler | undefined;
