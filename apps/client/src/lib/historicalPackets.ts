@@ -1,6 +1,6 @@
 import { FinishedFlightDataResponse, RocketFSMState } from "@try-catch/shared-types";
 
-import { CircularBuffer, CoarseCircularBuffer } from "./circularBuffer";
+import { CircularBuffer } from "./circularBuffer";
 
 type FlightPacket = FinishedFlightDataResponse["flightPackets"][number];
 type ValidFlightPacket = FlightPacket & {
@@ -75,35 +75,23 @@ export const createHistoricalPacketStreams = (packets: FlightPacket[]) => {
 			yaw: new CircularBuffer(count, 0),
 		},
 		fsmState: new CircularBuffer(count, { receivedAt: now, fsmState: "00" }),
-		positionGraph: new CoarseCircularBuffer(
-			count,
-			{
-				receivedAt: now,
-				altitudeBarometric: 0,
-				altitudeVelocity: 0,
-				altitudeAcceleration: 0,
-				totalAcceleration: 0,
-			},
-			1,
-		),
+		positionGraph: new CircularBuffer(count, {
+			receivedAt: now,
+			altitudeBarometric: 0,
+			altitudeVelocity: 0,
+			altitudeAcceleration: 0,
+			totalAcceleration: 0,
+		}),
 		barometricAltitude: new CircularBuffer(count, 0),
 		batteryVoltage: new CircularBuffer(count, 0),
-		batteryGraph: new CoarseCircularBuffer(
-			count,
-			{
-				receivedAt: now,
-				value: 0,
-			},
-			1,
-		),
-		triboelectricVoltage: new CoarseCircularBuffer(
-			count,
-			{
-				receivedAt: now,
-				value: 0,
-			},
-			1,
-		),
+		batteryGraph: new CircularBuffer(count, {
+			receivedAt: now,
+			value: 0,
+		}),
+		triboelectricVoltage: new CircularBuffer(count, {
+			receivedAt: now,
+			value: 0,
+		}),
 	};
 
 	for (const packet of validPackets) {
@@ -154,6 +142,7 @@ export const createHistoricalPacketStreams = (packets: FlightPacket[]) => {
 	return {
 		packetStreams,
 		parsedPackets: validPackets,
+		firstPacketReceivedAt: validPackets.length > 0 ? new Date(validPackets[0].receivedAt).getTime() : null,
 		lastPacketReceivedAt: lastPacket ? new Date(lastPacket.receivedAt).getTime() : null,
 	};
 };

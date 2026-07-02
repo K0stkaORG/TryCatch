@@ -3,7 +3,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 
 import { TelemetryPanel } from "@/components/active-flight/TelemetryPanel";
 import { CircularBuffer } from "@/lib/circularBuffer";
-import { RocketFSMState } from "@try-catch/shared-types";
+import { RocketFSMState, RocketFSMStates } from "@try-catch/shared-types";
 import { useMemo } from "react";
 
 interface StatusGraphProps {
@@ -19,7 +19,7 @@ export const StatusGraph = ({ statusData, packetHeartbeat }: StatusGraphProps) =
 		() =>
 			statusData.buffer.map((item) => ({
 				receivedAt: item.receivedAt,
-				fsmStateNumber: item.fsmState,
+				fsmState: item.fsmState,
 			})),
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[packetHeartbeat],
@@ -48,15 +48,19 @@ export const StatusGraph = ({ statusData, packetHeartbeat }: StatusGraphProps) =
 						interval={0}
 					/>
 					<YAxis
-						type="number"
+						type="category"
 						domain={["dataMin", "dataMax"]}
 						tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
 						tickMargin={8}
+						ticks={Object.keys(RocketFSMStates)}
 					/>
 					<Tooltip
 						labelStyle={{ color: "var(--foreground)" }}
 						labelFormatter={(value) => formatShortTime(value as number)}
-						formatter={(value) => [value, "FSM State"]}
+						formatter={(value) => [
+							RocketFSMStates[value?.toString() as RocketFSMState] ?? "Unknown state",
+							"FSM State",
+						]}
 						contentStyle={{
 							backgroundColor: "var(--card)",
 							borderColor: "var(--border)",
@@ -65,7 +69,7 @@ export const StatusGraph = ({ statusData, packetHeartbeat }: StatusGraphProps) =
 					/>
 					<Line
 						type="stepAfter"
-						dataKey="fsmState"
+						dataKey="fsmState" // Now successfully tracks the parsed numeric array
 						name="FSM State"
 						stroke="var(--chart-1)"
 						strokeWidth={2}

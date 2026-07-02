@@ -21,7 +21,7 @@ const formatDuration = (durationMs: number | null) => {
 	return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 };
 
-const formatDateTime = (value: Date | string | null) => {
+const formatDateTime = (value: Date | string | number | null) => {
 	if (!value) return "—";
 	return new Date(value).toLocaleString();
 };
@@ -29,12 +29,11 @@ const formatDateTime = (value: Date | string | null) => {
 const FinishedFlightScreen = () => {
 	const flightDetails = useLoaderData<FinishedFlightDataResponse>();
 
-	const { packetStreams, parsedPackets, lastPacketReceivedAt } = useMemo(
+	const { packetStreams, parsedPackets, firstPacketReceivedAt, lastPacketReceivedAt } = useMemo(
 		() => createHistoricalPacketStreams(flightDetails.flightPackets ?? []),
 		[flightDetails.flightPackets],
 	);
 
-	const lastPacket = parsedPackets[parsedPackets.length - 1];
 	const hasData = parsedPackets.length > 0;
 
 	const packetHeartbeat = lastPacketReceivedAt ?? 0;
@@ -57,28 +56,26 @@ const FinishedFlightScreen = () => {
 					<TelemetryPanel title="Flight summary">
 						<div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr]">
 							<div className="bg-muted/30 rounded-xl border px-3 py-2">
-								<div className="text-muted-foreground text-[10px] uppercase">Start</div>
+								<div className="text-muted-foreground text-[10px] uppercase">Created</div>
 								<div className="text-sm font-semibold">{formatDateTime(flightDetails.createdAt)}</div>
 							</div>
 							<div className="bg-muted/30 rounded-xl border px-3 py-2">
 								<div className="text-muted-foreground text-[10px] uppercase">First packet</div>
-								<div className="text-sm font-semibold">
-									{formatDateTime(flightDetails.firstPacketAt)}
-								</div>
+								<div className="text-sm font-semibold">{formatDateTime(firstPacketReceivedAt)}</div>
+							</div>
+							<div className="bg-muted/30 rounded-xl border px-3 py-2">
+								<div className="text-muted-foreground text-[10px] uppercase">Last packet</div>
+								<div className="text-sm font-semibold">{formatDateTime(lastPacketReceivedAt)}</div>
 							</div>
 							<div className="bg-muted/30 rounded-xl border px-3 py-2">
 								<div className="text-muted-foreground text-[10px] uppercase">Duration</div>
-								<div className="text-sm font-semibold">{formatDuration(flightDetails.durationMs)}</div>
+								<div className="text-sm font-semibold">
+									{formatDuration((lastPacketReceivedAt ?? 0) - (firstPacketReceivedAt ?? 0))}
+								</div>
 							</div>
 							<div className="bg-muted/30 rounded-xl border px-3 py-2">
 								<div className="text-muted-foreground text-[10px] uppercase">Packets</div>
 								<div className="text-sm font-semibold">{parsedPackets.length}</div>
-							</div>
-							<div className="bg-muted/30 rounded-xl border px-3 py-2">
-								<div className="text-muted-foreground text-[10px] uppercase">Last seen</div>
-								<div className="text-sm font-semibold">
-									{lastPacket ? new Date(lastPacket.receivedAt).toLocaleTimeString() : "—"}
-								</div>
 							</div>
 						</div>
 					</TelemetryPanel>

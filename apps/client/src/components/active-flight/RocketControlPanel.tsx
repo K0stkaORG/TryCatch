@@ -13,6 +13,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { request } from "@/lib/server";
 import type { RocketCommandRequest } from "@try-catch/shared-types";
+import { toast } from "sonner";
 
 type RocketCommand = {
 	label: string;
@@ -53,6 +54,12 @@ const commandCategories: RocketCommandCategory[] = [
 		icon: <Brain className="size-4" />,
 		commands: [
 			{
+				label: "Force state to Before Launch",
+				description: "Force the rocket's state to Before Launch.",
+				bytes: [0x47, 0x43, 0x01, 0x00],
+				variant: "secondary",
+			},
+			{
 				label: "Force state to Armed",
 				description: "Force the rocket's state to Armed.",
 				bytes: [0x47, 0x43, 0x01, 0x01],
@@ -76,12 +83,6 @@ const commandCategories: RocketCommandCategory[] = [
 				bytes: [0x47, 0x43, 0x01, 0x04],
 				variant: "secondary",
 			},
-			{
-				label: "Force state to Before Launch",
-				description: "Force the rocket's state to Before Launch.",
-				bytes: [0x47, 0x43, 0x01, 0x00],
-				variant: "secondary",
-			},
 		],
 	},
 ];
@@ -91,6 +92,10 @@ const sendRocketCommand = (bytes: RocketCommand["bytes"]) => {
 		path: "/rocket/command",
 		data: { bytes },
 		showPendingToast: false,
+		onSuccess: () =>
+			toast.success("Command sent successfully", {
+				description: formatBytes(bytes),
+			}),
 	});
 };
 
