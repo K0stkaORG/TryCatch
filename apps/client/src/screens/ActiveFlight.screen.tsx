@@ -8,7 +8,6 @@ import { PositionGraphs } from "@/components/active-flight/PositionGraphs";
 import { RocketControlPanel } from "@/components/active-flight/RocketControlPanel";
 import { RocketModel } from "@/components/active-flight/RocketModel";
 import { StatusLights } from "@/components/active-flight/StatusLights";
-import { TelemetryPanel } from "@/components/active-flight/TelemetryPanel";
 import ConfirmButton from "@/components/ConfirmButton";
 import ScreenTemplate from "@/components/ScreenTemplate";
 
@@ -156,15 +155,11 @@ const ActiveFlightScreen = () => {
 						/>
 					</div>
 				</div>
-				<TelemetryPanel title="Orientation">
-					<div className="h-full overflow-hidden rounded-xl border">
-						<RocketModel
-							roll={packetStreams.orientation.roll.last}
-							pitch={packetStreams.orientation.pitch.last}
-							yaw={packetStreams.orientation.yaw.last}
-						/>
-					</div>
-				</TelemetryPanel>
+				<RocketModel
+					roll={packetStreams.orientation.roll.last}
+					pitch={packetStreams.orientation.pitch.last}
+					yaw={packetStreams.orientation.yaw.last}
+				/>
 				<div className="min-h-80">
 					<Map
 						position={{
