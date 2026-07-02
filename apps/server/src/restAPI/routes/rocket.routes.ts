@@ -14,9 +14,9 @@ rocketRouter.post(
 
 		logger.info(`Sending rocket command: ${bytes.map((b) => `0x${b.toString(16).padStart(2, "0")}`).join(" ")}`);
 
-		return {};
-
 		ActiveFlightHandler.instance.sendRocketCommand(bytes);
+
+		return {};
 	}),
 );
 

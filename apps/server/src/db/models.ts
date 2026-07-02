@@ -21,7 +21,7 @@ export const FlightPackets = pgTable(
 			.notNull()
 			.references(() => Flights.id, { onDelete: "cascade" }),
 		rawBytes: varchar("raw_bytes", {
-			length: 255,
+			length: 1023,
 		}).notNull(),
 		parsedData: jsonb("parsed_data").$type<Packet["parsedData"]>(),
 		receivedAt: timestamp("received_at", { mode: "date" }).notNull().defaultNow(),

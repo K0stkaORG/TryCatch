@@ -4,7 +4,9 @@ import { Packet } from "../models/packet";
 
 export type FlightsListResponse = {
 	activeFlight: Pick<Flight, "id" | "name"> | null;
-	archivedFlights: Flight[];
+	archivedFlights: (Flight & {
+		numberOfPackets: number;
+	})[];
 };
 
 export type ActiveFlightDataResponse = Pick<Flight, "id" | "name">;

@@ -1,8 +1,14 @@
+import { BatteryGraph } from "@/components/active-flight/BatteryGraph";
+import { ExperimentGraph } from "@/components/active-flight/ExperimentGraph";
+import { Map } from "@/components/active-flight/Map";
+import { PositionGraphs } from "@/components/active-flight/PositionGraphs";
+import { StatusGraph } from "@/components/active-flight/StatusGraph";
+import { TelemetryPanel } from "@/components/active-flight/TelemetryPanel";
 import ScreenTemplate from "@/components/ScreenTemplate";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { createHistoricalPacketStreams } from "@/lib/historicalPackets";
 import { FinishedFlightDataResponse } from "@try-catch/shared-types";
-import { Activity, Archive, Battery, Clock, Flag, MapPin, Signal } from "lucide-react";
+import { Archive } from "lucide-react";
+import { useMemo } from "react";
 import { useLoaderData } from "react-router";
 
 const formatDuration = (durationMs: number | null) => {
@@ -22,136 +28,151 @@ const formatDateTime = (value: Date | string | null) => {
 
 const FinishedFlightScreen = () => {
 	const flightDetails = useLoaderData<FinishedFlightDataResponse>();
-	const packets = flightDetails.flightPackets ?? [];
-	const lastPacket = packets[packets.length - 1];
-	const lastSeen = lastPacket ? new Date(lastPacket.receivedAt).toLocaleTimeString() : "—";
-	const batteryVoltage = lastPacket?.parsedData?.batteryVoltage;
-	const altitude = lastPacket?.parsedData?.position?.altitude;
+
+	const { packetStreams, parsedPackets, lastPacketReceivedAt } = useMemo(
+		() => createHistoricalPacketStreams(flightDetails.flightPackets ?? []),
+		[flightDetails.flightPackets],
+	);
+
+	const lastPacket = parsedPackets[parsedPackets.length - 1];
+	const hasData = parsedPackets.length > 0;
+
+	const packetHeartbeat = lastPacketReceivedAt ?? 0;
 
 	return (
 		<ScreenTemplate
-			title={`Flight ${flightDetails.name}`}
+			title={
+				<div className="flex items-center gap-3">
+					Flight {flightDetails.name}{" "}
+					<span className="text-muted-foreground inline-flex items-center gap-2 text-sm">
+						<Archive className="size-4" />
+						Archived
+					</span>
+				</div>
+			}
+			className="from-muted/30 to-muted/50 bg-linear-to-br via-transparent"
 			backPath="/">
-			<div className="flex flex-col gap-4">
-				<section className="grid gap-3 lg:grid-cols-[1.4fr_1fr]">
-					<Card className="bg-card/60 border-border/60">
-						<CardHeader className="flex flex-row items-start justify-between gap-4">
-							<div className="space-y-2">
-								<div className="text-muted-foreground flex items-center gap-2 text-sm">
-									<div className="bg-primary/15 text-primary flex size-8 items-center justify-center rounded-lg">
-										<Flag className="size-4" />
-									</div>
-									<span>Mission summary</span>
+			<div className="relative grid min-h-full w-full gap-3 rounded-2xl p-2 xl:grid-cols-[6fr_4fr] xl:grid-rows-[1fr_1fr]">
+				<div className="relative row-span-2 grid size-full grid-rows-[auto_auto_auto_auto] gap-3 xl:grid-rows-[auto_1fr_1fr_auto]">
+					<TelemetryPanel title="Flight summary">
+						<div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr]">
+							<div className="bg-muted/30 rounded-xl border px-3 py-2">
+								<div className="text-muted-foreground text-[10px] uppercase">Start</div>
+								<div className="text-sm font-semibold">{formatDateTime(flightDetails.createdAt)}</div>
+							</div>
+							<div className="bg-muted/30 rounded-xl border px-3 py-2">
+								<div className="text-muted-foreground text-[10px] uppercase">First packet</div>
+								<div className="text-sm font-semibold">
+									{formatDateTime(flightDetails.firstPacketAt)}
 								</div>
-								<h2 className="text-2xl font-semibold tracking-tight">{flightDetails.name}</h2>
-								<p className="text-muted-foreground text-sm">Flight #{flightDetails.id}</p>
 							</div>
-							<Badge className="gap-1.5">
-								<Archive className="size-3.5" />
-								Archived
-							</Badge>
-						</CardHeader>
-						<CardContent className="grid gap-3 md:grid-cols-3">
-							<div className="bg-muted/30 rounded-2xl border px-4 py-3">
-								<p className="text-muted-foreground text-xs tracking-[0.2em] uppercase">Start</p>
-								<p className="text-sm font-semibold">{formatDateTime(flightDetails.createdAt)}</p>
+							<div className="bg-muted/30 rounded-xl border px-3 py-2">
+								<div className="text-muted-foreground text-[10px] uppercase">Duration</div>
+								<div className="text-sm font-semibold">{formatDuration(flightDetails.durationMs)}</div>
 							</div>
-							<div className="bg-muted/30 rounded-2xl border px-4 py-3">
-								<p className="text-muted-foreground text-xs tracking-[0.2em] uppercase">First packet</p>
-								<p className="text-sm font-semibold">{formatDateTime(flightDetails.firstPacketAt)}</p>
+							<div className="bg-muted/30 rounded-xl border px-3 py-2">
+								<div className="text-muted-foreground text-[10px] uppercase">Packets</div>
+								<div className="text-sm font-semibold">{parsedPackets.length}</div>
 							</div>
-							<div className="bg-muted/30 rounded-2xl border px-4 py-3">
-								<p className="text-muted-foreground text-xs tracking-[0.2em] uppercase">Duration</p>
-								<p className="text-sm font-semibold">{formatDuration(flightDetails.durationMs)}</p>
+							<div className="bg-muted/30 rounded-xl border px-3 py-2">
+								<div className="text-muted-foreground text-[10px] uppercase">Last seen</div>
+								<div className="text-sm font-semibold">
+									{lastPacket ? new Date(lastPacket.receivedAt).toLocaleTimeString() : "—"}
+								</div>
 							</div>
-						</CardContent>
-					</Card>
+						</div>
+					</TelemetryPanel>
 
-					<Card className="bg-card/60 border-border/60">
-						<CardHeader>
-							<div className="flex items-center justify-between">
-								<div>
-									<p className="text-muted-foreground text-sm">Telemetry snapshot</p>
-									<h3 className="text-lg font-semibold">Final status</h3>
-								</div>
-								<div className="bg-primary/15 text-primary flex size-10 items-center justify-center rounded-xl">
-									<Activity className="size-4" />
-								</div>
+					{hasData ? (
+						<PositionGraphs
+							chartData={packetStreams.positionGraph}
+							packetHeartbeat={packetHeartbeat}
+						/>
+					) : (
+						<TelemetryPanel
+							title="Altitude / Velocity / Acceleration"
+							className="h-44 xl:h-full">
+							<div className="text-muted-foreground flex h-full items-center justify-center rounded-xl border border-dashed text-sm">
+								No telemetry data available.
 							</div>
-						</CardHeader>
-						<CardContent className="space-y-3 text-sm">
-							<div className="flex items-center justify-between">
-								<span className="flex items-center gap-2">
-									<Signal className="text-primary size-4" />
-									Packets received
-								</span>
-								<span className="font-semibold">{packets.length}</span>
-							</div>
-							<div className="flex items-center justify-between">
-								<span className="flex items-center gap-2">
-									<Clock className="text-primary size-4" />
-									Last seen
-								</span>
-								<span className="font-semibold">{lastSeen}</span>
-							</div>
-							<div className="flex items-center justify-between">
-								<span className="flex items-center gap-2">
-									<Battery className="text-primary size-4" />
-									Battery voltage
-								</span>
-								<span className="font-semibold">
-									{typeof batteryVoltage === "number" ? `${batteryVoltage.toFixed(2)} V` : "—"}
-								</span>
-							</div>
-							<div className="flex items-center justify-between">
-								<span className="flex items-center gap-2">
-									<MapPin className="text-primary size-4" />
-									Altitude
-								</span>
-								<span className="font-semibold">
-									{typeof altitude === "number" ? `${altitude.toFixed(1)} m` : "—"}
-								</span>
-							</div>
-							<div className="bg-muted/30 text-muted-foreground rounded-xl border px-4 py-3 text-xs">
-								Telemetry shown from the final received packet.
-							</div>
-						</CardContent>
-					</Card>
-				</section>
+						</TelemetryPanel>
+					)}
 
-				<section className="space-y-3">
-					<div>
-						<h3 className="text-lg font-semibold">Recent packets</h3>
-						<p className="text-muted-foreground text-sm">Latest telemetry frames for this flight.</p>
+					{hasData ? (
+						<ExperimentGraph
+							triboelectricVoltage={packetStreams.triboelectricVoltage}
+							packetHeartbeat={packetHeartbeat}
+						/>
+					) : (
+						<TelemetryPanel
+							title="Triboelectric Voltage"
+							className="h-44 xl:h-full">
+							<div className="text-muted-foreground flex h-full items-center justify-center rounded-xl border border-dashed text-sm">
+								No telemetry data available.
+							</div>
+						</TelemetryPanel>
+					)}
+
+					<div className="grid gap-3 xl:grid-cols-2">
+						{hasData ? (
+							<StatusGraph
+								statusData={packetStreams.statusGraph}
+								packetHeartbeat={packetHeartbeat}
+							/>
+						) : (
+							<TelemetryPanel
+								title="Status"
+								className="h-44 xl:h-full">
+								<div className="text-muted-foreground flex h-full items-center justify-center rounded-xl border border-dashed text-sm">
+									No status data available.
+								</div>
+							</TelemetryPanel>
+						)}
+
+						{hasData ? (
+							<BatteryGraph
+								batteryData={packetStreams.batteryGraph}
+								packetHeartbeat={packetHeartbeat}
+							/>
+						) : (
+							<TelemetryPanel
+								title="Battery"
+								className="h-44 xl:h-full">
+								<div className="text-muted-foreground flex h-full items-center justify-center rounded-xl border border-dashed text-sm">
+									No battery data available.
+								</div>
+							</TelemetryPanel>
+						)}
 					</div>
-					<Card className="bg-card/60 border-border/60">
-						<CardContent className="space-y-2 p-4">
-							{packets.length === 0 && (
-								<div className="text-muted-foreground rounded-xl border px-4 py-3 text-sm">
-									No packets were recorded for this flight.
-								</div>
-							)}
-							{packets
-								.slice(-6)
-								.reverse()
-								.map((packet, index) => (
-									<div
-										key={`${packet.receivedAt}-${index}`}
-										className="flex items-center justify-between rounded-xl border px-4 py-3 text-sm">
-										<div className="flex flex-col">
-											<span className="font-medium">Packet #{packets.length - index}</span>
-											<span className="text-muted-foreground text-xs">
-												{new Date(packet.receivedAt).toLocaleTimeString()}
-											</span>
-										</div>
-										<Badge variant={packet.parsedData ? "default" : "secondary"}>
-											{packet.parsedData ? "Parsed" : "Raw"}
-										</Badge>
-									</div>
-								))}
-						</CardContent>
-					</Card>
-				</section>
+				</div>
+
+				<div className="row-span-2 min-h-80">
+					{hasData ? (
+						<Map
+							position={{
+								latlong: packetStreams.position.latlong,
+								altitude: packetStreams.position.altitude,
+							}}
+							velocity={{
+								latitude: packetStreams.velocity.latitude,
+								longitude: packetStreams.velocity.longitude,
+							}}
+							acceleration={{
+								latitude: packetStreams.acceleration.latitude,
+								longitude: packetStreams.acceleration.longitude,
+							}}
+							parachudeDeployed={packetStreams.flags.parachuteDeployed.last}
+							packetHeartbeat={packetHeartbeat}
+							variant="archive"
+						/>
+					) : (
+						<TelemetryPanel title="Map">
+							<div className="text-muted-foreground flex h-full items-center justify-center rounded-xl border border-dashed text-sm">
+								No position data available.
+							</div>
+						</TelemetryPanel>
+					)}
+				</div>
 			</div>
 		</ScreenTemplate>
 	);

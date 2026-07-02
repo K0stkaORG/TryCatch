@@ -1,0 +1,1 @@
+ALTER TABLE "flight_packets" ALTER COLUMN "raw_bytes" SET DATA TYPE varchar(1023);

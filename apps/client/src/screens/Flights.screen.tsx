@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { FlightsListResponse } from "@try-catch/shared-types";
-import { ArrowRight, Github, Rocket, Scroll } from "lucide-react";
+import { ArrowRight, Download, Github, Rocket, Scroll } from "lucide-react";
 import { ReactNode } from "react";
 
 const FlightsCard = ({ children, className }: { children?: ReactNode; className?: string }) => {
@@ -81,15 +81,26 @@ const FlightsScreen = () => {
 								<div>
 									<h3 className="text-lg font-semibold">{flight.name}</h3>
 									<p className="text-muted-foreground text-sm">
-										{new Date(flight.createdAt).toLocaleString()}
+										{new Date(flight.createdAt).toLocaleString()}, {flight.numberOfPackets} packets
 									</p>
 								</div>
-								<Link
-									to={`/flight/${flight.id}`}
-									className="text-primary/80 flex items-center gap-1 underline decoration-dashed transition-all hover:decoration-0">
-									View details
-									<ArrowRight className="size-4" />
-								</Link>
+								<div className="flex flex-col gap-1">
+									{flight.numberOfPackets <= 20000 && (
+										<Link
+											to={`/flight/${flight.id}`}
+											className="text-primary/80 flex items-center gap-1 underline decoration-dashed transition-all hover:decoration-0">
+											View details
+											<ArrowRight className="size-4" />
+										</Link>
+									)}
+									<a
+										href={`/api/flights/download/${flight.id}`}
+										className="text-primary/80 flex items-center gap-1 underline decoration-dashed transition-all hover:decoration-0"
+										download={`flight_${flight.id}_packets.csv`}>
+										Download data
+										<Download className="size-4" />
+									</a>
+								</div>
 							</div>
 						))}
 						{archivedFlights.length === 0 && (

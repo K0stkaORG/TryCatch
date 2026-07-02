@@ -43,7 +43,7 @@ const commandCategories: RocketCommandCategory[] = [
 			{
 				label: "Reset servo",
 				description: "Return the servo to its reset position.",
-				bytes: [0x47, 0x43, 0xaa, 0x01],
+				bytes: [0x47, 0x43, 0x55, 0x00],
 				variant: "secondary",
 			},
 		],

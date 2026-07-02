@@ -4,9 +4,10 @@ import {
 	FinishedFlightDataResponse,
 	FlightsListResponse,
 	NewFlightRequest,
+	ValidPacket,
 } from "@try-catch/shared-types";
 import { Router } from "express";
-import { and, db, desc, eq, FlightPackets, Flights, isNotNull } from "~/db";
+import { and, count, db, desc, eq, FlightPackets, Flights, isNotNull } from "~/db";
 import { ActiveFlightHandler } from "~/lib/activeFlightHandler";
 import { UserRequestError } from "~/lib/errors";
 import { RouteHandler } from "../middleware/validation";
@@ -16,10 +17,20 @@ const flightsRouter: Router = Router();
 flightsRouter.get(
 	"/list",
 	RouteHandler(null, async (): Promise<FlightsListResponse> => {
-		const flights = await db.query.Flights.findMany({
-			where: isNotNull(Flights.durationMs),
-			orderBy: desc(Flights.createdAt),
-		});
+		const flights = await db
+			.select({
+				id: Flights.id,
+				name: Flights.name,
+				createdAt: Flights.createdAt,
+				firstPacketAt: Flights.firstPacketAt,
+				durationMs: Flights.durationMs,
+				numberOfPackets: count(FlightPackets.id),
+			})
+			.from(Flights)
+			.leftJoin(FlightPackets, eq(FlightPackets.flightId, Flights.id))
+			.where(isNotNull(Flights.durationMs))
+			.groupBy(Flights.id)
+			.orderBy(desc(Flights.createdAt));
 
 		return {
 			activeFlight: ActiveFlightHandler.isActive ? ActiveFlightHandler.instance.flight : null,
@@ -58,6 +69,152 @@ flightsRouter.post(
 		if (!flight) throw new UserRequestError("Flight not found");
 
 		return flight;
+	}),
+);
+
+flightsRouter.get(
+	"/download/:flightId",
+	RouteHandler(null, async (_data, req, res): Promise<void> => {
+		const flightId = parseInt(req.params.flightId, 10);
+
+		if (isNaN(flightId)) throw new UserRequestError("Invalid flight ID");
+
+		const flightPackets = await db.query.FlightPackets.findMany({
+			where: eq(FlightPackets.flightId, flightId),
+			orderBy: desc(FlightPackets.receivedAt),
+			columns: {
+				id: true,
+				rawBytes: true,
+				parsedData: true,
+				receivedAt: true,
+			},
+		});
+
+		if (flightPackets.length === 0) throw new UserRequestError("Flight not found");
+
+		// 1. Define all flat CSV headers explicitly
+		const csvHeaders = [
+			"id",
+			"rawBytes",
+			"receivedAt",
+			"timestampMs",
+			"packetId",
+			"raw_stateFlags",
+			"raw_accelX",
+			"raw_accelY",
+			"raw_accelZ",
+			"raw_gyroX",
+			"raw_gyroY",
+			"raw_gyroZ",
+			"raw_pressureScaled",
+			"raw_triboVoltageRaw",
+			"raw_batteryVoltageRaw",
+			"raw_gpsLatOffset",
+			"raw_gpsLonOffset",
+			"raw_gpsAltMeters",
+			"raw_ky024Analog",
+			"position_latitude",
+			"position_longitude",
+			"position_altitude",
+			"velocity_latitude",
+			"velocity_longitude",
+			"velocity_altitude",
+			"velocity_total",
+			"acceleration_latitude",
+			"acceleration_longitude",
+			"acceleration_altitude",
+			"acceleration_total",
+			"orientation_roll",
+			"orientation_pitch",
+			"orientation_yaw",
+			"angularVelocity_roll",
+			"angularVelocity_pitch",
+			"angularVelocity_yaw",
+			"barmetricAltitude",
+			"batteryVoltage",
+			"triboelectricVoltage",
+			"launchDetected",
+			"apogeeDetected",
+			"parachuteDeployed",
+		];
+
+		// 2. Map rows by pulling out every nested property safely
+		const csvRows = flightPackets.map((packet) => {
+			// Cast or explicitly type the database response to match your ValidPacket structure
+			const p = packet.parsedData as ValidPacket["parsedData"] | null;
+
+			const columns = [
+				packet.id,
+				`"${packet.rawBytes.replace(/"/g, '""')}"`, // Escape quotes inside raw strings
+				packet.receivedAt.toISOString(),
+
+				// Top-level parsed data
+				p?.timestampMs ?? "",
+				p?.packetId ?? "",
+
+				// Raw sub-object
+				p?.raw?.stateFlags ?? "",
+				p?.raw?.accelX ?? "",
+				p?.raw?.accelY ?? "",
+				p?.raw?.accelZ ?? "",
+				p?.raw?.gyroX ?? "",
+				p?.raw?.gyroY ?? "",
+				p?.raw?.gyroZ ?? "",
+				p?.raw?.pressureScaled ?? "",
+				p?.raw?.triboVoltageRaw ?? "",
+				p?.raw?.batteryVoltageRaw ?? "",
+				p?.raw?.gpsLatOffset ?? "",
+				p?.raw?.gpsLonOffset ?? "",
+				p?.raw?.gpsAltMeters ?? "",
+				p?.raw?.ky024Analog ?? "",
+
+				// Position sub-object
+				p?.position?.latitude ?? "",
+				p?.position?.longitude ?? "",
+				p?.position?.altitude ?? "",
+
+				// Velocity sub-object
+				p?.velocity?.latitude ?? "",
+				p?.velocity?.longitude ?? "",
+				p?.velocity?.altitude ?? "",
+				p?.velocity?.total ?? "",
+
+				// Acceleration sub-object
+				p?.acceleration?.latitude ?? "",
+				p?.acceleration?.longitude ?? "",
+				p?.acceleration?.altitude ?? "",
+				p?.acceleration?.total ?? "",
+
+				// Orientation sub-object
+				p?.orientation?.roll ?? "",
+				p?.orientation?.pitch ?? "",
+				p?.orientation?.yaw ?? "",
+
+				// Angular Velocity sub-object
+				p?.angularVelocity?.roll ?? "",
+				p?.angularVelocity?.pitch ?? "",
+				p?.angularVelocity?.yaw ?? "",
+
+				// Remaining flat telemetry fields
+				p?.barmetricAltitude ?? "", // Kept your original 'barmetric' typo to match your type
+				p?.batteryVoltage ?? "",
+				p?.triboelectricVoltage ?? "",
+				p?.launchDetected !== undefined ? String(p.launchDetected) : "",
+				p?.apogeeDetected !== undefined ? String(p.apogeeDetected) : "",
+				p?.parachuteDeployed !== undefined ? String(p.parachuteDeployed) : "",
+			];
+
+			return columns.join(",");
+		});
+
+		// 3. Assemble full content
+		const csvContent = [csvHeaders.join(","), ...csvRows].join("\n");
+
+		// 4. Send back as actual file download response
+		res.setHeader("Content-Type", "text/csv");
+		res.setHeader("Content-Disposition", `attachment; filename=flight_${flightId}_packets.csv`);
+		res.write(csvContent);
+		res.send();
 	}),
 );
 

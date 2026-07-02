@@ -25,6 +25,7 @@ interface MapProps {
 	};
 	parachudeDeployed: boolean;
 	packetHeartbeat: number;
+	variant?: "active" | "archive";
 }
 
 type LatLng = [number, number];
@@ -60,7 +61,15 @@ const FollowRocketController = ({
 	return null;
 };
 
-export const Map = ({ position, velocity, acceleration, parachudeDeployed, packetHeartbeat }: MapProps) => {
+export const Map = ({
+	position,
+	velocity,
+	acceleration,
+	parachudeDeployed,
+	packetHeartbeat,
+	variant = "active",
+}: MapProps) => {
+	const isArchive = variant === "archive";
 	const [followRocket, setFollowRocket] = useState(true);
 
 	const currentPosition: LatLng = position.latlong.last;
@@ -101,7 +110,7 @@ export const Map = ({ position, velocity, acceleration, parachudeDeployed, packe
 				zoom={15}
 				zoomControl={false}
 				scrollWheelZoom
-				className="h-full w-full overflow-hidden rounded-[0.75rem] border">
+				className="h-full w-full overflow-hidden rounded-2xl border">
 				<FollowRocketController
 					followRocket={followRocket}
 					currentPosition={currentPosition}
@@ -113,25 +122,27 @@ export const Map = ({ position, velocity, acceleration, parachudeDeployed, packe
 					maxZoom={19}
 				/>
 
-				<Pane
-					name="l0"
-					style={{ zIndex: 400 }}>
-					{parachudeDeployed && (
-						<Circle
-							center={currentPosition}
-							radius={position.altitude.last}
-							pathOptions={{
-								color: "#3b82f6",
-								weight: 2,
-								fillColor: "#3b82f6",
-								fillOpacity: 0.2,
-								dashArray: "10 10",
-								dashOffset: "0",
-							}}
-							pane="l0"
-						/>
-					)}
-				</Pane>
+				{!isArchive && (
+					<Pane
+						name="l0"
+						style={{ zIndex: 400 }}>
+						{parachudeDeployed && (
+							<Circle
+								center={currentPosition}
+								radius={position.altitude.last}
+								pathOptions={{
+									color: "#3b82f6",
+									weight: 2,
+									fillColor: "#3b82f6",
+									fillOpacity: 0.2,
+									dashArray: "10 10",
+									dashOffset: "0",
+								}}
+								pane="l0"
+							/>
+						)}
+					</Pane>
+				)}
 
 				<Pane
 					name="l1"
@@ -155,37 +166,41 @@ export const Map = ({ position, velocity, acceleration, parachudeDeployed, packe
 					/>
 				</Pane>
 
-				<Pane
-					name="l2"
-					style={{ zIndex: 600 }}>
-					<Polyline
-						positions={velocityVector}
-						pathOptions={{ color: "#5eead4", weight: 3, opacity: 1 }}
-						pane="l2"
-					/>
+				{!isArchive && (
+					<Pane
+						name="l2"
+						style={{ zIndex: 600 }}>
+						<Polyline
+							positions={velocityVector}
+							pathOptions={{ color: "#5eead4", weight: 3, opacity: 1 }}
+							pane="l2"
+						/>
 
-					<Polyline
-						positions={accelerationVector}
-						pathOptions={{ color: "#f59e0b", weight: 3, opacity: 1 }}
-						pane="l2"
-					/>
-				</Pane>
+						<Polyline
+							positions={accelerationVector}
+							pathOptions={{ color: "#f59e0b", weight: 3, opacity: 1 }}
+							pane="l2"
+						/>
+					</Pane>
+				)}
 			</MapContainer>
 
-			<div
-				className="bg-background/85 border-border absolute right-5 bottom-5 rounded-sm border px-1.5 py-1 text-xs backdrop-blur"
-				style={{ zIndex: 1000 }}>
-				<div className="mb-1 flex items-center gap-1.5">
-					<span className="inline-block size-3 rounded-full bg-[#5eead4]" /> velocity
+			{!isArchive && (
+				<div
+					className="bg-background/85 border-border absolute right-5 bottom-5 rounded-sm border px-1.5 py-1 text-xs backdrop-blur"
+					style={{ zIndex: 1000 }}>
+					<div className="mb-1 flex items-center gap-1.5">
+						<span className="inline-block size-3 rounded-full bg-[#5eead4]" /> velocity
+					</div>
+					<div className="mb-1 flex items-center gap-1.5">
+						<span className="inline-block size-3 rounded-full bg-[#f59e0b]" /> acceleration
+					</div>
+					<div className="flex items-center gap-1.5">
+						<span className="inline-block size-3 rounded-full border-2 border-dashed border-[#3b82f6] bg-[#3b82f6]/20" />{" "}
+						landing zone
+					</div>
 				</div>
-				<div className="mb-1 flex items-center gap-1.5">
-					<span className="inline-block size-3 rounded-full bg-[#f59e0b]" /> acceleration
-				</div>
-				<div className="flex items-center gap-1.5">
-					<span className="inline-block size-3 rounded-full border-2 border-dashed border-[#3b82f6] bg-[#3b82f6]/20" />{" "}
-					landing zone
-				</div>
-			</div>
+			)}
 		</TelemetryPanel>
 	);
 };
