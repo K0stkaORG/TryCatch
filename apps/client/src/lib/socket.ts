@@ -173,7 +173,6 @@ export const usePackets = (flightId: Flight["id"]) => {
 
 			socket.disconnect();
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [flightId, navigate, handlePacket]);
 
 	return {

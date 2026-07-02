@@ -88,7 +88,7 @@ const ActiveFlightScreen = () => {
 						<div className="bg-card/60 border-border/60 rounded-xl border px-3 py-2">
 							<div className="text-muted-foreground text-[10px] uppercase">Altitude (GPS/Baro)</div>
 							<div className="text-lg leading-tight font-semibold">
-								{altitudeGPS.toFixed(1)} / {altitudeBaro.toFixed(1)} m
+								{/*{altitudeGPS.toFixed(1)} / {altitudeBaro.toFixed(1)} m*/}
 							</div>
 						</div>
 						<div className="bg-card/60 border-border/60 rounded-xl border px-3 py-2">
