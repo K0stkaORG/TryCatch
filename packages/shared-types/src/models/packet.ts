@@ -51,7 +51,7 @@ export type ValidPacket = {
 			yaw: number;
 		};
 
-		barmetricAltitude: number;
+		barometricAltitude: number;
 
 		batteryVoltage: number;
 

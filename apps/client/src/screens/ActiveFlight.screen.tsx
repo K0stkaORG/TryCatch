@@ -11,14 +11,11 @@ import { StatusLights } from "@/components/active-flight/StatusLights";
 import ConfirmButton from "@/components/ConfirmButton";
 import ScreenTemplate from "@/components/ScreenTemplate";
 
-import { computeDeadReckoningFromHistory } from "@/lib/deadReckoning";
 import { request } from "@/lib/server";
 import { usePackets } from "@/lib/socket";
 import { ActiveFlightDataResponse } from "@try-catch/shared-types";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useLoaderData } from "react-router";
-
-const DEAD_RECKONING_GROUND_ALTITUDE_METERS = 403;
 
 const ActiveFlightScreen = () => {
 	const flightDetails = useLoaderData<ActiveFlightDataResponse>();
@@ -33,6 +30,28 @@ const ActiveFlightScreen = () => {
 
 	const { connected, packetStreams, packetHeartbeat, packetLossHeartbeat } = usePackets(flightDetails.id);
 
+	const deadReckoningState = {
+		position: {
+			latitude: packetStreams.position.latlong.last[0],
+			longitude: packetStreams.position.latlong.last[1],
+			altitude: packetStreams.position.altitude.last,
+		},
+		velocity: {
+			latitude: packetStreams.velocity.latitude.last,
+			longitude: packetStreams.velocity.longitude.last,
+			altitude: packetStreams.velocity.altitude.last,
+			total: packetStreams.velocity.total.last,
+		},
+		acceleration: {
+			latitude: packetStreams.acceleration.latitude.last,
+			longitude: packetStreams.acceleration.longitude.last,
+			altitude: packetStreams.acceleration.altitude.last,
+			total: packetStreams.acceleration.total.last,
+		},
+		barometricAltitude: packetStreams.barometricAltitude.last,
+		timestamp: packetHeartbeat,
+	};
+
 	const altitudeGPS = packetStreams.position.altitude.last;
 	const altitudeBaro = packetStreams.barometricAltitude.last;
 	const speedTotal = packetStreams.velocity.total.last;
@@ -40,39 +59,6 @@ const ActiveFlightScreen = () => {
 	const lastLatitude = packetStreams.position.latlong.last[0];
 	const lastLongitude = packetStreams.position.latlong.last[1];
 	const coordinates = `${lastLatitude.toFixed(5)}, ${lastLongitude.toFixed(5)}`;
-	const lastPacketAt = packetHeartbeat;
-
-	const [deadReckoning, setDeadReckoning] = useState<
-		| (NonNullable<ReturnType<typeof computeDeadReckoningFromHistory>> & {
-				ageMs: number;
-				updatedAt: number;
-		  })
-		| null
-	>(null);
-
-	useEffect(() => {
-		const updateDeadReckoning = () => {
-			if (!lastPacketAt) return;
-
-			const ageMs = Math.max(0, Date.now() - lastPacketAt);
-			const estimate = computeDeadReckoningFromHistory(packetStreams.deadReckoningHistory.buffer, Date.now(), {
-				groundAltitude: DEAD_RECKONING_GROUND_ALTITUDE_METERS,
-			});
-
-			if (!estimate) return;
-
-			setDeadReckoning({
-				...estimate,
-				ageMs,
-				updatedAt: Date.now(),
-			});
-		};
-
-		updateDeadReckoning();
-		const interval = window.setInterval(updateDeadReckoning, 250);
-
-		return () => window.clearInterval(interval);
-	}, [lastPacketAt, packetStreams.deadReckoningHistory]);
 
 	return (
 		<ScreenTemplate
@@ -116,7 +102,7 @@ const ActiveFlightScreen = () => {
 							<div className="text-lg leading-tight font-semibold">{coordinates}</div>
 						</div>
 
-						<DeadReckoningPanel estimate={deadReckoning} />
+						<DeadReckoningPanel lastPacket={deadReckoningState} />
 
 						<RocketControlPanel />
 

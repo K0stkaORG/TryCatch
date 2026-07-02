@@ -193,14 +193,14 @@ export const createHistoricalPacketStreams = (packets: FlightPacket[]) => {
 		packetStreams.positionGraph.push({
 			receivedAt,
 			altitudeGPS: parsed.position.altitude,
-			altitudeBarometric: parsed.barmetricAltitude,
+			altitudeBarometric: parsed.barometricAltitude,
 			altitudeVelocity: parsed.velocity.altitude,
 			totalVelocity: parsed.velocity.total,
 			altitudeAcceleration: parsed.acceleration.altitude,
 			totalAcceleration: parsed.acceleration.total,
 		});
 
-		packetStreams.barometricAltitude.push(parsed.barmetricAltitude);
+		packetStreams.barometricAltitude.push(parsed.barometricAltitude);
 		packetStreams.batteryVoltage.push(parsed.batteryVoltage);
 		packetStreams.batteryGraph.push({
 			receivedAt,

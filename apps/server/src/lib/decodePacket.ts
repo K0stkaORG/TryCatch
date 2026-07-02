@@ -123,7 +123,7 @@ export const decodePacket = (data: Buffer): Packet["parsedData"] => {
 	const yaw = ((toDegrees(orientationEstimate.yaw) % 360) + 360) % 360;
 
 	const pressurePa = pressureScaled * 2;
-	const barmetricAltitude = pressurePa > 0 ? 44330 * (1 - Math.pow(pressurePa / SEA_LEVEL_PRESSURE_PA, 0.1903)) : 0;
+	const barometricAltitude = pressurePa > 0 ? 44330 * (1 - Math.pow(pressurePa / SEA_LEVEL_PRESSURE_PA, 0.1903)) : 0;
 
 	const batteryVoltage = batteryVoltageRaw * BATTERY_VOLT_PER_LSB;
 	const triboelectricVoltage = triboVoltageRaw * TRIBO_VOLT_PER_LSB;
@@ -192,7 +192,7 @@ export const decodePacket = (data: Buffer): Packet["parsedData"] => {
 			pitch: angularVelocityPitch,
 			yaw: angularVelocityYaw,
 		},
-		barmetricAltitude,
+		barometricAltitude,
 		batteryVoltage,
 		triboelectricVoltage,
 		launchDetected: (stateFlags & 0b0000_0001) !== 0,

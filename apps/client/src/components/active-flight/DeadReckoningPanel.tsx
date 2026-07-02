@@ -1,5 +1,5 @@
 import { Activity, LocateFixed, MapPin, Navigation, Ruler } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { CircleMarker, MapContainer, Pane, Polyline, TileLayer, useMap } from "react-leaflet";
 
 import { Button } from "@/components/ui/button";
@@ -12,23 +12,20 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-	METERS_PER_DEGREE_LAT,
-	metersPerDegreeLongitude,
-	type computeDeadReckoningFromHistory,
+	approximateDeadReckoning,
+	DEAD_RECKONING_GROUND_ALTITUDE_METERS,
+	DeadReckoningResult,
+	DeadReckoningState,
 } from "@/lib/deadReckoning";
-
-type DeadReckoningEstimate = NonNullable<ReturnType<typeof computeDeadReckoningFromHistory>> & {
-	ageMs: number;
-	updatedAt: number;
-};
 
 type LatLng = [number, number];
 
-interface DeadReckoningPanelProps {
-	estimate: DeadReckoningEstimate | null;
-}
+export const METERS_PER_DEGREE_LAT = 111_320;
+
+const metersPerDegreeLongitude = (latitude: number) => 111_320 * Math.max(0.2, Math.cos((latitude * Math.PI) / 180));
 
 const formatCoordinate = (value: number) => value.toFixed(5);
+
 const formatSigned = (value: number, digits = 1) => `${value >= 0 ? "+" : ""}${value.toFixed(digits)}`;
 
 const distanceMeters = (from: LatLng, to: LatLng) => {
@@ -46,7 +43,7 @@ const FitDeadReckoningBounds = ({ points }: { points: LatLng[] }) => {
 		if (points.length < 2) return;
 
 		map.fitBounds(points, {
-			animate: false,
+			animate: true,
 			padding: [40, 40],
 			maxZoom: 18,
 		});
@@ -76,31 +73,33 @@ const StatCard = ({
 	</div>
 );
 
-export const DeadReckoningPanel = ({ estimate }: DeadReckoningPanelProps) => {
-	const lastKnownPosition: LatLng | null = estimate
-		? [estimate.lastKnown.position.latitude, estimate.lastKnown.position.longitude]
-		: null;
-	const estimatedPosition: LatLng | null = estimate
-		? [estimate.position.latitude, estimate.position.longitude]
-		: null;
-	const estimatePath = lastKnownPosition && estimatedPosition ? [lastKnownPosition, estimatedPosition] : [];
-	const estimatedSpeed = estimate
-		? Math.hypot(estimate.velocity.latitude, estimate.velocity.longitude, estimate.velocity.altitude)
-		: 0;
-	const horizontalDrift =
-		lastKnownPosition && estimatedPosition ? distanceMeters(lastKnownPosition, estimatedPosition) : 0;
-	const altitudeDelta = estimate ? estimate.position.altitude - estimate.lastKnown.position.altitude : 0;
-	const ageSeconds = estimate ? estimate.ageMs / 1000 : 0;
+export const DeadReckoningPanel = ({ lastPacket }: { lastPacket: DeadReckoningState }) => {
+	const [estimate, setEstimate] = useState<DeadReckoningResult | null>(null);
+	const [open, setOpen] = useState(false);
+
+	useEffect(() => {
+		if (!open) return;
+
+		const updateEstimate = () => setEstimate(approximateDeadReckoning(lastPacket));
+
+		updateEstimate();
+
+		const interval = window.setInterval(updateEstimate, 250);
+
+		return () => window.clearInterval(interval);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [lastPacket.timestamp, open]);
 
 	return (
-		<Dialog>
+		<Dialog
+			open={open}
+			onOpenChange={setOpen}>
 			<DialogTrigger asChild>
 				<Button
-					variant={estimate ? "outline" : "secondary"}
+					variant="outline"
 					className="h-10 rounded-xl border xl:h-full">
 					<LocateFixed className="size-4" />
 					Dead reckoning
-					{estimate && <span className="text-muted-foreground text-xs">{ageSeconds.toFixed(1)}s</span>}
 				</Button>
 			</DialogTrigger>
 			<DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
@@ -111,16 +110,21 @@ export const DeadReckoningPanel = ({ estimate }: DeadReckoningPanelProps) => {
 					</DialogDescription>
 				</DialogHeader>
 
-				{estimate && lastKnownPosition && estimatedPosition ? (
+				{estimate ? (
 					<div className="grid gap-4">
 						<div className="h-80 overflow-hidden rounded-xl border">
 							<MapContainer
-								center={estimatedPosition}
+								center={[estimate.position.latitude, estimate.position.longitude]}
 								zoom={16}
 								zoomControl={false}
 								scrollWheelZoom
 								className="h-full w-full">
-								<FitDeadReckoningBounds points={estimatePath} />
+								<FitDeadReckoningBounds
+									points={[
+										[lastPacket.position.latitude, lastPacket.position.longitude],
+										[estimate.position.latitude, estimate.position.longitude],
+									]}
+								/>
 								<TileLayer
 									url="https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png?api_key=4576c6da-92ed-4c6c-ad5a-ddedbb4e5168"
 									maxZoom={19}
@@ -129,12 +133,15 @@ export const DeadReckoningPanel = ({ estimate }: DeadReckoningPanelProps) => {
 									name="dead-reckoning-path"
 									style={{ zIndex: 500 }}>
 									<Polyline
-										positions={estimatePath}
+										positions={[
+											[lastPacket.position.latitude, lastPacket.position.longitude],
+											[estimate.position.latitude, estimate.position.longitude],
+										]}
 										pathOptions={{ color: "#a855f7", weight: 4, opacity: 0.9, dashArray: "8 8" }}
 										pane="dead-reckoning-path"
 									/>
 									<CircleMarker
-										center={lastKnownPosition}
+										center={[lastPacket.position.latitude, lastPacket.position.longitude]}
 										radius={8}
 										pathOptions={{
 											color: "#ff00a1",
@@ -145,7 +152,7 @@ export const DeadReckoningPanel = ({ estimate }: DeadReckoningPanelProps) => {
 										pane="dead-reckoning-path"
 									/>
 									<CircleMarker
-										center={estimatedPosition}
+										center={[estimate.position.latitude, estimate.position.longitude]}
 										radius={10}
 										pathOptions={{
 											color: "#a855f7",
@@ -163,23 +170,34 @@ export const DeadReckoningPanel = ({ estimate }: DeadReckoningPanelProps) => {
 							<StatCard
 								icon={<Activity className="size-3" />}
 								label="Status"
-								value={estimate.landed ? "Landed" : `${ageSeconds.toFixed(2)} s`}
+								value={estimate.landed ? "Landed" : `${(estimate.ageMs / 1000).toFixed(2)} s`}
 								detail={
 									estimate.landed
-										? `Stopped at ${estimate.groundAltitude.toFixed(1)} m ground`
-										: `Updated ${new Date(estimate.updatedAt).toLocaleTimeString()}`
+										? `Stopped at ${DEAD_RECKONING_GROUND_ALTITUDE_METERS.toFixed(1)} m ground`
+										: `Updated ${estimate.calculatedAt.toLocaleTimeString()}`
 								}
 							/>
 							<StatCard
 								icon={<Ruler className="size-3" />}
 								label="Horizontal drift"
-								value={`${horizontalDrift.toFixed(1)} m`}
-								detail={`${formatSigned(altitudeDelta)} m altitude`}
+								value={`${distanceMeters(
+									[lastPacket.position.latitude, lastPacket.position.longitude],
+									[estimate.position.latitude, estimate.position.longitude],
+								).toFixed(1)} m`}
+								detail={`${formatSigned(estimate.position.altitude - lastPacket.position.altitude)} m altitude`}
 							/>
 							<StatCard
 								icon={<Navigation className="size-3" />}
 								label="Estimated speed"
-								value={estimate.landed ? "0.00 m/s" : `${estimatedSpeed.toFixed(2)} m/s`}
+								value={
+									estimate.landed
+										? "0.00 m/s"
+										: `${Math.hypot(
+												estimate.velocity.latitude,
+												estimate.velocity.longitude,
+												estimate.velocity.altitude,
+											).toFixed(2)} m/s`
+								}
 								detail={
 									estimate.landed
 										? "Expected touchdown"
@@ -190,7 +208,7 @@ export const DeadReckoningPanel = ({ estimate }: DeadReckoningPanelProps) => {
 								icon={<MapPin className="size-3" />}
 								label="Estimated altitude"
 								value={`${estimate.position.altitude.toFixed(1)} m`}
-								detail={`Last ${estimate.lastKnown.position.altitude.toFixed(1)} m`}
+								detail={`Last ${lastPacket.position.altitude.toFixed(1)} m`}
 							/>
 						</div>
 
@@ -201,8 +219,8 @@ export const DeadReckoningPanel = ({ estimate }: DeadReckoningPanelProps) => {
 									position
 								</div>
 								<div className="text-muted-foreground">
-									{formatCoordinate(estimate.lastKnown.position.latitude)},{" "}
-									{formatCoordinate(estimate.lastKnown.position.longitude)}
+									{formatCoordinate(lastPacket.position.latitude)},{" "}
+									{formatCoordinate(lastPacket.position.longitude)}
 								</div>
 							</div>
 							<div className="bg-muted/30 rounded-xl p-3">

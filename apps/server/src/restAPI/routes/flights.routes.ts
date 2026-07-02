@@ -130,7 +130,7 @@ flightsRouter.get(
 			"angularVelocity_roll",
 			"angularVelocity_pitch",
 			"angularVelocity_yaw",
-			"barmetricAltitude",
+			"barometricAltitude",
 			"batteryVoltage",
 			"triboelectricVoltage",
 			"launchDetected",
@@ -196,7 +196,7 @@ flightsRouter.get(
 				p?.angularVelocity?.yaw ?? "",
 
 				// Remaining flat telemetry fields
-				p?.barmetricAltitude ?? "", // Kept your original 'barmetric' typo to match your type
+				p?.barometricAltitude ?? "",
 				p?.batteryVoltage ?? "",
 				p?.triboelectricVoltage ?? "",
 				p?.launchDetected !== undefined ? String(p.launchDetected) : "",
