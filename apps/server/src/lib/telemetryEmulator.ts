@@ -11,13 +11,17 @@ const metersToLongitudeDelta = (meters: number, latitude: number) =>
 	meters / (111_320 * Math.max(0.2, Math.cos((latitude * Math.PI) / 180)));
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const normalizeAngle = (value: number) => ((value + 180) % 360) - 180;
+const degreesToMicrodegreesOffset = (value: number, base: number) => Math.round((value - base) * 1_000_000);
+
+type ParsedPacket = ValidPacket["parsedData"];
 
 export class TelemetryEmulator {
 	private startedAt: Date;
 	private packetLossChance: number;
 
 	private lastPacketAt: Date;
-	private lastPacket: ValidPacket["parsedData"];
+	private lastPacket: ParsedPacket;
+	private packetId = 0;
 
 	private interval: NodeJS.Timeout;
 
@@ -29,41 +33,7 @@ export class TelemetryEmulator {
 		this.packetLossChance = 0.03 + Math.random() * 0.1;
 
 		this.lastPacketAt = new Date();
-		this.lastPacket = {
-			position: {
-				latitude: BASE_LATITUDE + (Math.random() - 0.5) * 0.0005,
-				longitude: BASE_LONGITUDE + (Math.random() - 0.5) * 0.0005,
-				altitude: 0,
-			},
-			velocity: {
-				latitude: 0,
-				longitude: 0,
-				altitude: 0,
-				total: 0,
-			},
-			acceleration: {
-				latitude: 0,
-				longitude: 0,
-				altitude: 0,
-				total: 0,
-			},
-			orientation: {
-				roll: 0,
-				pitch: 0,
-				yaw: 0,
-			},
-			angularVelocity: {
-				roll: 0,
-				pitch: 0,
-				yaw: 0,
-			},
-			barmetricAltitude: 0,
-			batteryVoltage: 4.2,
-			triboelectricVoltage: 0,
-			launchDetected: false,
-			apogeeDetected: false,
-			parachuteDeployed: false,
-		};
+		this.lastPacket = this.createInitialPacket(this.lastPacketAt);
 
 		this.interval = setInterval(() => {
 			const packet = this.packet;
@@ -76,7 +46,7 @@ export class TelemetryEmulator {
 		);
 	}
 
-	public get packet(): ValidPacket["parsedData"] | null {
+	public get packet(): ParsedPacket | null {
 		if (this.isPacketLost) return null;
 
 		const now = new Date();
@@ -86,41 +56,7 @@ export class TelemetryEmulator {
 		if (elapsedMs > FLIGHT_DURATION_SECONDS * 1000) {
 			this.startedAt = now;
 			this.lastPacketAt = now;
-			this.lastPacket = {
-				position: {
-					latitude: BASE_LATITUDE + (Math.random() - 0.5) * 0.0005,
-					longitude: BASE_LONGITUDE + (Math.random() - 0.5) * 0.0005,
-					altitude: 0,
-				},
-				velocity: {
-					latitude: 0,
-					longitude: 0,
-					altitude: 0,
-					total: 0,
-				},
-				acceleration: {
-					latitude: 0,
-					longitude: 0,
-					altitude: 0,
-					total: 0,
-				},
-				orientation: {
-					roll: 0,
-					pitch: 0,
-					yaw: 0,
-				},
-				angularVelocity: {
-					roll: 0,
-					pitch: 0,
-					yaw: 0,
-				},
-				barmetricAltitude: 0,
-				batteryVoltage: 4.2,
-				triboelectricVoltage: 0,
-				launchDetected: false,
-				apogeeDetected: false,
-				parachuteDeployed: false,
-			};
+			this.lastPacket = this.createInitialPacket(now);
 			return this.lastPacket;
 		}
 
@@ -213,8 +149,28 @@ export class TelemetryEmulator {
 		const velocityTotal = Math.hypot(velocityLatitude, velocityLongitude, verticalVelocity);
 		const accelerationTotal = Math.hypot(accelerationLatitude, accelerationLongitude, verticalAcceleration);
 
-		const currentPacket: ValidPacket["parsedData"] = {
+		const stateFlags = (launchDetected ? 1 : 0) | (apogeeDetected ? 2 : 0) | (parachuteDeployed ? 4 : 0);
+
+		const currentPacket: ParsedPacket = {
 			...this.lastPacket,
+			timestampMs: now.getTime(),
+			packetId: ++this.packetId,
+			raw: {
+				stateFlags,
+				accelX: accelerationLatitude,
+				accelY: accelerationLongitude,
+				accelZ: verticalAcceleration,
+				gyroX: angularVelocityRoll,
+				gyroY: angularVelocityPitch,
+				gyroZ: angularVelocityYaw,
+				pressureScaled: barometricAltitude,
+				triboVoltageRaw: triboelectricVoltage,
+				batteryVoltageRaw: batteryVoltage,
+				gpsLatOffset: degreesToMicrodegreesOffset(latitude, BASE_LATITUDE),
+				gpsLonOffset: degreesToMicrodegreesOffset(longitude, BASE_LONGITUDE),
+				gpsAltMeters: Math.max(0, altitude),
+				ky024Analog: parachuteDeployed ? 1 : 0,
+			},
 			position: {
 				latitude,
 				longitude,
@@ -254,6 +210,65 @@ export class TelemetryEmulator {
 		this.lastPacketAt = now;
 
 		return currentPacket;
+	}
+
+	private createInitialPacket(now: Date): ParsedPacket {
+		const latitude = BASE_LATITUDE + (Math.random() - 0.5) * 0.0005;
+		const longitude = BASE_LONGITUDE + (Math.random() - 0.5) * 0.0005;
+
+		return {
+			timestampMs: now.getTime(),
+			packetId: ++this.packetId,
+			raw: {
+				stateFlags: 0,
+				accelX: 0,
+				accelY: 0,
+				accelZ: 0,
+				gyroX: 0,
+				gyroY: 0,
+				gyroZ: 0,
+				pressureScaled: 0,
+				triboVoltageRaw: 0,
+				batteryVoltageRaw: 4.2,
+				gpsLatOffset: degreesToMicrodegreesOffset(latitude, BASE_LATITUDE),
+				gpsLonOffset: degreesToMicrodegreesOffset(longitude, BASE_LONGITUDE),
+				gpsAltMeters: 0,
+				ky024Analog: 0,
+			},
+			position: {
+				latitude,
+				longitude,
+				altitude: 0,
+			},
+			velocity: {
+				latitude: 0,
+				longitude: 0,
+				altitude: 0,
+				total: 0,
+			},
+			acceleration: {
+				latitude: 0,
+				longitude: 0,
+				altitude: 0,
+				total: 0,
+			},
+			orientation: {
+				roll: 0,
+				pitch: 0,
+				yaw: 0,
+			},
+			angularVelocity: {
+				roll: 0,
+				pitch: 0,
+				yaw: 0,
+			},
+			barmetricAltitude: 0,
+			batteryVoltage: 4.2,
+			triboelectricVoltage: 0,
+			launchDetected: false,
+			apogeeDetected: false,
+			parachuteDeployed: false,
+		};
 	}
 
 	private get isPacketLost() {

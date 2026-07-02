@@ -70,7 +70,7 @@ export const usePackets = (flightId: Flight["id"]) => {
 				altitudeAcceleration: 0,
 				totalAcceleration: 0,
 			},
-			5,
+			2,
 		),
 		barometricAltitude: new CircularBuffer(1, 0),
 		batteryVoltage: new CircularBuffer(1, 0),
@@ -97,6 +97,8 @@ export const usePackets = (flightId: Flight["id"]) => {
 
 	const handlePacket = (packet: Pick<ValidPacket, "receivedAt" | "parsedData">) => {
 		const receivedAt = new Date(packet.receivedAt).getTime();
+
+		console.log("Received packet:", packet.parsedData);
 
 		packetStreams.position.latlong.push([
 			packet.parsedData.position.latitude,

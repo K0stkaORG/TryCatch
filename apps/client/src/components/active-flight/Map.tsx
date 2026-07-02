@@ -1,10 +1,10 @@
-import { useRef, useState } from "react";
-import { Circle, MapContainer, Pane, Polyline, TileLayer } from "react-leaflet";
+import { useEffect, useState } from "react";
+import { Circle, MapContainer, Pane, Polyline, TileLayer, useMap, useMapEvents } from "react-leaflet";
 
 import { TelemetryPanel } from "@/components/active-flight/TelemetryPanel";
 import { Button } from "@/components/ui/button";
 import { CircularBuffer } from "@/lib/circularBuffer";
-import { DivIcon, type Map as LeafletMap } from "leaflet";
+import { DivIcon } from "leaflet";
 import { Crosshair } from "lucide-react";
 import ReactLeafletDriftMarker from "react-leaflet-drift-marker";
 
@@ -36,9 +36,31 @@ const addMetersToLatLng = (latlng: LatLng, metersNorth: number, metersEast: numb
 	return [latlng[0] + (deltaLat * 180) / Math.PI, latlng[1] + (deltaLng * 180) / Math.PI];
 };
 
-export const Map = ({ position, velocity, acceleration, parachudeDeployed, packetHeartbeat }: MapProps) => {
-	const mapRef = useRef<LeafletMap | null>(null);
+const FollowRocketController = ({
+	followRocket,
+	currentPosition,
+	onUserPan,
+}: {
+	followRocket: boolean;
+	currentPosition: LatLng;
+	onUserPan: () => void;
+}) => {
+	const map = useMap();
 
+	useMapEvents({
+		dragstart: onUserPan,
+	});
+
+	useEffect(() => {
+		if (!followRocket) return;
+
+		map.panTo(currentPosition, { animate: false });
+	}, [currentPosition, followRocket, map]);
+
+	return null;
+};
+
+export const Map = ({ position, velocity, acceleration, parachudeDeployed, packetHeartbeat }: MapProps) => {
 	const [followRocket, setFollowRocket] = useState(true);
 
 	const currentPosition: LatLng = position.latlong.last;
@@ -75,14 +97,19 @@ export const Map = ({ position, velocity, acceleration, parachudeDeployed, packe
 				</Button>
 			}>
 			<MapContainer
-				center={[0, 0]}
+				center={currentPosition}
 				zoom={15}
 				zoomControl={false}
 				scrollWheelZoom
-				className="h-full w-full overflow-hidden rounded-[0.75rem] border"
-				ref={mapRef}>
+				className="h-full w-full overflow-hidden rounded-[0.75rem] border">
+				<FollowRocketController
+					followRocket={followRocket}
+					currentPosition={currentPosition}
+					onUserPan={() => setFollowRocket(false)}
+				/>
+
 				<TileLayer
-					url="https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png"
+					url="https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png?api_key=4576c6da-92ed-4c6c-ad5a-ddedbb4e5168"
 					maxZoom={19}
 				/>
 
@@ -118,7 +145,6 @@ export const Map = ({ position, velocity, acceleration, parachudeDeployed, packe
 					<ReactLeafletDriftMarker
 						position={currentPosition}
 						duration={100}
-						keepAtCenter={followRocket}
 						icon={
 							new DivIcon({
 								html: `<div class="size-4 rounded-full bg-[#ff00a1] border-2 border-black"></div>`,

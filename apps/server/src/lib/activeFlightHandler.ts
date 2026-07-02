@@ -36,12 +36,12 @@ export class ActiveFlightHandler {
 
 	private setupPacketLossDetection(): NodeJS.Timeout {
 		return setInterval(() => {
-			const packetLossCuttof = Date.now() - PACKET_LOSS_HEARTBEAT_INTERVAL_MS;
+			const packetLossCutoff = Date.now() - PACKET_LOSS_HEARTBEAT_INTERVAL_MS;
 
 			let packetsReceivedInInterval = 0;
 
 			for (let i = this.packets.length - 1; i >= 0; i--) {
-				if (this.packets[i].receivedAt.getTime() < packetLossCuttof) break;
+				if (this.packets[i].receivedAt.getTime() < packetLossCutoff) break;
 
 				packetsReceivedInInterval++;
 			}
@@ -95,7 +95,8 @@ export class ActiveFlightHandler {
 		this.port.on("data", (data: Buffer) => {
 			const packetData = decodePacket(data);
 			const hexString = data.toString("hex").toUpperCase();
-			console.log(hexString);
+
+			if (!packetData) logger.warn(`Received unrecognized packet (${data.length} bytes): ${hexString}`);
 
 			this.commitBuffer.push({
 				rawBytes: hexString,
@@ -145,7 +146,7 @@ export class ActiveFlightHandler {
 	public static stop() {
 		if (!ActiveFlightHandler._instance) return;
 
-		ActiveFlightHandler._instance.port?.destroy();
+		ActiveFlightHandler._instance.port?.close();
 		ActiveFlightHandler._instance.telemetryEmulator?.stop();
 		clearInterval(ActiveFlightHandler._instance.packetLossInterval);
 		ActiveFlightHandler.flightEndListener?.();
@@ -155,7 +156,7 @@ export class ActiveFlightHandler {
 		ActiveFlightHandler._instance = undefined;
 	}
 
-	public static onNewPacket(listener: (packet: Pick<Packet, "receivedAt" | "parsedData">) => void) {
+	public static onNewPacket(listener: (packet: Pick<ValidPacket, "receivedAt" | "parsedData">) => void) {
 		this.newPacketListener = listener;
 	}
 
@@ -167,9 +168,9 @@ export class ActiveFlightHandler {
 		this.flightEndListener = listener;
 	}
 
-	public sendServoCommand(bytes: number[]) {
+	public sendRocketCommand(bytes: number[]) {
 		if (!this.port || !this.port.isOpen) {
-			logger.warn("Servo command ignored: serial port not open.");
+			logger.warn("Rocket command ignored: serial port not open.");
 			return;
 		}
 

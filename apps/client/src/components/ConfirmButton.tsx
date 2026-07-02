@@ -14,6 +14,7 @@ import { Button, ButtonVariantProps } from "./ui/button";
 import { useState } from "react";
 
 type ConfirmButtonProps = ButtonVariantProps & {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	onClick: () => any;
 	className?: string;
 	children: React.ReactNode;

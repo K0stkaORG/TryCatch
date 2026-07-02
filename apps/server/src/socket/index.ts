@@ -1,5 +1,6 @@
 import { AppServer, AppSocket } from "~/lib/types";
 
+import { ValidPacket } from "@try-catch/shared-types";
 import { ActiveFlightHandler } from "~/lib/activeFlightHandler";
 import { ExtendedError } from "~/lib/errors";
 import { logger } from "~/lib/logger";
@@ -26,7 +27,12 @@ export function setupSocketHandlers(io: AppServer): void {
 			return void socket.disconnect(true);
 		}
 
-		socket.emit("initialSync", { packets: ActiveFlightHandler.instance.packets });
+		socket.emit("initialSync", {
+			packets: ActiveFlightHandler.instance.packets.filter((p) => p.parsedData) as Pick<
+				ValidPacket,
+				"receivedAt" | "parsedData"
+			>[],
+		});
 
 		next();
 	});
