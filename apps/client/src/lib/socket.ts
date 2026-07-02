@@ -61,7 +61,6 @@ export const usePackets = (flightId: Flight["id"]) => {
 		}>(
 			PACKET_BUFFER_SIZE,
 			{
-				// eslint-disable-next-line react-hooks/purity
 				receivedAt: Date.now(),
 				altitudeGPS: 0,
 				altitudeBarometric: 0,
@@ -80,7 +79,6 @@ export const usePackets = (flightId: Flight["id"]) => {
 		}>(
 			PACKET_BUFFER_SIZE,
 			{
-				// eslint-disable-next-line react-hooks/purity
 				receivedAt: Date.now(),
 				value: 0,
 			},
@@ -97,8 +95,6 @@ export const usePackets = (flightId: Flight["id"]) => {
 
 	const handlePacket = (packet: Pick<ValidPacket, "receivedAt" | "parsedData">) => {
 		const receivedAt = new Date(packet.receivedAt).getTime();
-
-		console.log("Received packet:", packet.parsedData);
 
 		packetStreams.position.latlong.push([
 			packet.parsedData.position.latitude,
@@ -202,6 +198,7 @@ export const usePackets = (flightId: Flight["id"]) => {
 
 			socket.disconnect();
 		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [flightId, navigate, handlePacket]);
 
 	return {
