@@ -7,7 +7,7 @@ import { PacketLossGraph } from "@/components/active-flight/PacketLossGraph";
 import { PositionGraphs } from "@/components/active-flight/PositionGraphs";
 import { RocketControlPanel } from "@/components/active-flight/RocketControlPanel";
 import { RocketModel } from "@/components/active-flight/RocketModel";
-import { StatusLights } from "@/components/active-flight/StatusLights";
+import { StatusDisplay } from "@/components/active-flight/StatusDisplay";
 import ConfirmButton from "@/components/ConfirmButton";
 import ScreenTemplate from "@/components/ScreenTemplate";
 
@@ -29,36 +29,6 @@ const ActiveFlightScreen = () => {
 	);
 
 	const { connected, packetStreams, packetHeartbeat, packetLossHeartbeat } = usePackets(flightDetails.id);
-
-	const deadReckoningState = {
-		position: {
-			latitude: packetStreams.position.latlong.last[0],
-			longitude: packetStreams.position.latlong.last[1],
-			altitude: packetStreams.position.altitude.last,
-		},
-		velocity: {
-			latitude: packetStreams.velocity.latitude.last,
-			longitude: packetStreams.velocity.longitude.last,
-			altitude: packetStreams.velocity.altitude.last,
-			total: packetStreams.velocity.total.last,
-		},
-		acceleration: {
-			latitude: packetStreams.acceleration.latitude.last,
-			longitude: packetStreams.acceleration.longitude.last,
-			altitude: packetStreams.acceleration.altitude.last,
-			total: packetStreams.acceleration.total.last,
-		},
-		barometricAltitude: packetStreams.barometricAltitude.last,
-		timestamp: packetHeartbeat,
-	};
-
-	const altitudeGPS = packetStreams.position.altitude.last;
-	const altitudeBaro = packetStreams.barometricAltitude.last;
-	const speedTotal = packetStreams.velocity.total.last;
-	const speedVertical = packetStreams.velocity.altitude.last;
-	const lastLatitude = packetStreams.position.latlong.last[0];
-	const lastLongitude = packetStreams.position.latlong.last[1];
-	const coordinates = `${lastLatitude.toFixed(5)}, ${lastLongitude.toFixed(5)}`;
 
 	return (
 		<ScreenTemplate
@@ -86,23 +56,41 @@ const ActiveFlightScreen = () => {
 				<div className="relative row-span-2 grid size-full grid-rows-[auto_auto_auto_auto] gap-3 xl:grid-rows-[auto_1fr_1fr_auto]">
 					<div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto_auto_auto]">
 						<div className="bg-card/60 border-border/60 rounded-xl border px-3 py-2">
-							<div className="text-muted-foreground text-[10px] uppercase">Altitude (GPS/Baro)</div>
+							<div className="text-muted-foreground text-[10px] uppercase">Altitude (Baro)</div>
 							<div className="text-lg leading-tight font-semibold">
-								{/*{altitudeGPS.toFixed(1)} / {altitudeBaro.toFixed(1)} m*/}
+								{packetStreams.barometricAltitude.last.toFixed(1)} m
 							</div>
 						</div>
 						<div className="bg-card/60 border-border/60 rounded-xl border px-3 py-2">
-							<div className="text-muted-foreground text-[10px] uppercase">Speed (vertical/total)</div>
+							<div className="text-muted-foreground text-[10px] uppercase">Speed (vertical)</div>
 							<div className="text-lg leading-tight font-semibold">
-								{speedVertical.toFixed(1)} / {speedTotal.toFixed(1)} m/s
+								{packetStreams.velocity.altitude.last.toFixed(1)} m/s
 							</div>
 						</div>
 						<div className="bg-card/60 border-border/60 rounded-xl border px-3 py-2">
 							<div className="text-muted-foreground text-[10px] uppercase">Coordinates</div>
-							<div className="text-lg leading-tight font-semibold">{coordinates}</div>
+							<div className="text-lg leading-tight font-semibold">{`${packetStreams.gpsPosition.latlong.last[0].toFixed(5)}, ${packetStreams.gpsPosition.latlong.last[1].toFixed(5)}`}</div>
 						</div>
 
-						<DeadReckoningPanel lastPacket={deadReckoningState} />
+						<DeadReckoningPanel
+							lastPacket={{
+								position: {
+									latitude: packetStreams.gpsPosition.latlong.last[0],
+									longitude: packetStreams.gpsPosition.latlong.last[1],
+								},
+								velocity: {
+									altitude: packetStreams.velocity.altitude.last,
+								},
+								acceleration: {
+									latitude: packetStreams.acceleration.latitude.last,
+									longitude: packetStreams.acceleration.longitude.last,
+									altitude: packetStreams.acceleration.altitude.last,
+									total: packetStreams.acceleration.total.last,
+								},
+								barometricAltitude: packetStreams.barometricAltitude.last,
+								timestamp: packetHeartbeat,
+							}}
+						/>
 
 						<RocketControlPanel />
 
@@ -133,10 +121,8 @@ const ActiveFlightScreen = () => {
 							packetLoss={packetStreams.packetLoss}
 							packetLossHeartbeat={packetLossHeartbeat}
 						/>
-						<StatusLights
-							launchDetected={packetStreams.flags.launchDetected.last}
-							apogeeDetected={packetStreams.flags.apogeeDetected.last}
-							parachuteDeployed={packetStreams.flags.parachuteDeployed.last}
+						<StatusDisplay
+							fsmState={packetStreams.fsmState.last}
 							batteryVoltage={packetStreams.batteryVoltage.last}
 						/>
 					</div>
@@ -148,19 +134,9 @@ const ActiveFlightScreen = () => {
 				/>
 				<div className="min-h-80">
 					<Map
-						position={{
-							latlong: packetStreams.position.latlong,
-							altitude: packetStreams.position.altitude,
+						gpsPosition={{
+							latlong: packetStreams.gpsPosition.latlong,
 						}}
-						velocity={{
-							latitude: packetStreams.velocity.latitude,
-							longitude: packetStreams.velocity.longitude,
-						}}
-						acceleration={{
-							latitude: packetStreams.acceleration.latitude,
-							longitude: packetStreams.acceleration.longitude,
-						}}
-						parachudeDeployed={packetStreams.flags.parachuteDeployed.last}
 						packetHeartbeat={packetHeartbeat}
 					/>
 				</div>

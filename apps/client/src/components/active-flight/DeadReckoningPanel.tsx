@@ -184,7 +184,7 @@ export const DeadReckoningPanel = ({ lastPacket }: { lastPacket: DeadReckoningSt
 									[lastPacket.position.latitude, lastPacket.position.longitude],
 									[estimate.position.latitude, estimate.position.longitude],
 								).toFixed(1)} m`}
-								detail={`${formatSigned(estimate.position.altitude - lastPacket.position.altitude)} m altitude`}
+								detail={`${formatSigned(estimate.barometricAltitude - lastPacket.barometricAltitude)} m altitude`}
 							/>
 							<StatCard
 								icon={<Navigation className="size-3" />}
@@ -192,11 +192,7 @@ export const DeadReckoningPanel = ({ lastPacket }: { lastPacket: DeadReckoningSt
 								value={
 									estimate.landed
 										? "0.00 m/s"
-										: `${Math.hypot(
-												estimate.velocity.latitude,
-												estimate.velocity.longitude,
-												estimate.velocity.altitude,
-											).toFixed(2)} m/s`
+										: `${Math.hypot(estimate.velocity.altitude).toFixed(2)} m/s`
 								}
 								detail={
 									estimate.landed
@@ -207,8 +203,8 @@ export const DeadReckoningPanel = ({ lastPacket }: { lastPacket: DeadReckoningSt
 							<StatCard
 								icon={<MapPin className="size-3" />}
 								label="Estimated altitude"
-								value={`${estimate.position.altitude.toFixed(1)} m`}
-								detail={`Last ${lastPacket.position.altitude.toFixed(1)} m`}
+								value={`${estimate.barometricAltitude.toFixed(1)} m`}
+								detail={`Last ${lastPacket.barometricAltitude.toFixed(1)} m`}
 							/>
 						</div>
 

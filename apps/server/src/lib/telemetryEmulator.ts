@@ -1,4 +1,4 @@
-import { ValidPacket } from "@try-catch/shared-types";
+import { RocketFSMState, ValidPacket } from "@try-catch/shared-types";
 import { logger } from "./logger";
 
 const FLIGHT_DURATION_SECONDS = 120;
@@ -15,6 +15,19 @@ const degreesToMicrodegreesOffset = (value: number, base: number) => Math.round(
 
 type ParsedPacket = ValidPacket["parsedData"];
 
+interface SimulationPhysics {
+	altitude: number;
+	verticalVelocity: number;
+	verticalAcceleration: number;
+	velocityLatitude: number;
+	velocityLongitude: number;
+	accelerationLatitude: number;
+	accelerationLongitude: number;
+	latitude: number;
+	longitude: number;
+	fsmState: RocketFSMState;
+}
+
 export class TelemetryEmulator {
 	private startedAt: Date;
 	private packetLossChance: number;
@@ -22,8 +35,9 @@ export class TelemetryEmulator {
 	private lastPacketAt: Date;
 	private lastPacket: ParsedPacket;
 	private packetId = 0;
-
 	private interval: NodeJS.Timeout;
+
+	private physics!: SimulationPhysics;
 
 	public constructor(
 		private readonly expectedPacketsPerSecond: number,
@@ -33,17 +47,34 @@ export class TelemetryEmulator {
 		this.packetLossChance = 0.03 + Math.random() * 0.1;
 
 		this.lastPacketAt = new Date();
+		this.initPhysics();
 		this.lastPacket = this.createInitialPacket(this.lastPacketAt);
 
 		this.interval = setInterval(() => {
 			const packet = this.packet;
-
 			if (packet) this.onPacketCallback(packet);
 		}, 1000 / this.expectedPacketsPerSecond);
 
 		logger.info(
 			`TelemetryEmulator initialized with packet loss chance: ${(this.packetLossChance * 100).toFixed(2)}%`,
 		);
+	}
+
+	private initPhysics() {
+		const latitude = BASE_LATITUDE + (Math.random() - 0.5) * 0.0005;
+		const longitude = BASE_LONGITUDE + (Math.random() - 0.5) * 0.0005;
+		this.physics = {
+			altitude: 0,
+			verticalVelocity: 0,
+			verticalAcceleration: 0,
+			velocityLatitude: 0,
+			velocityLongitude: 0,
+			accelerationLatitude: 0,
+			accelerationLongitude: 0,
+			latitude,
+			longitude,
+			fsmState: "00",
+		};
 	}
 
 	public get packet(): ParsedPacket | null {
@@ -56,37 +87,36 @@ export class TelemetryEmulator {
 		if (elapsedMs > FLIGHT_DURATION_SECONDS * 1000) {
 			this.startedAt = now;
 			this.lastPacketAt = now;
+			this.initPhysics();
 			this.lastPacket = this.createInitialPacket(now);
 			return this.lastPacket;
 		}
 
 		const t = elapsedMs / 1000;
-
 		const safeDt = clamp(dtSeconds, 0.02, 0.5);
 
-		let altitude = this.lastPacket.position.altitude;
-		let verticalVelocity = this.lastPacket.velocity.altitude;
-		let verticalAcceleration = this.lastPacket.acceleration.altitude;
-		let velocityLatitude = this.lastPacket.velocity.latitude;
-		let velocityLongitude = this.lastPacket.velocity.longitude;
-		let accelerationLatitude = this.lastPacket.acceleration.latitude;
-		let accelerationLongitude = this.lastPacket.acceleration.longitude;
-		let latitude = this.lastPacket.position.latitude;
-		let longitude = this.lastPacket.position.longitude;
+		let {
+			altitude,
+			verticalVelocity,
+			verticalAcceleration,
+			velocityLatitude,
+			velocityLongitude,
+			accelerationLatitude,
+			accelerationLongitude,
+			latitude,
+			longitude,
+			fsmState,
+		} = this.physics;
 
-		let launchDetected = this.lastPacket.launchDetected;
-		let apogeeDetected = this.lastPacket.apogeeDetected;
-		let parachuteDeployed = this.lastPacket.parachuteDeployed;
-
-		// Simulate a simplified launch profile with ascent, ballistic descent, and parachute drift.
 		if (t > 0 && t <= FLIGHT_DURATION_SECONDS) {
-			if (!launchDetected) {
-				launchDetected = true;
+			if (fsmState === "00" || fsmState === "01") {
+				fsmState = "02"; // Switch to Flight
 				verticalVelocity = (4 * FLIGHT_APOGEE_METERS) / FLIGHT_DURATION_SECONDS;
 			}
 
 			verticalAcceleration = (-8 * FLIGHT_APOGEE_METERS) / (FLIGHT_DURATION_SECONDS * FLIGHT_DURATION_SECONDS);
 			const windHeading = t * 0.11;
+			const parachuteDeployed = fsmState === "04" || fsmState === "03";
 			const windBase = parachuteDeployed ? 10 : 4;
 			const windGust = 1.7 * Math.sin(t * 0.2);
 			const driftSpeed = windBase + windGust;
@@ -94,8 +124,8 @@ export class TelemetryEmulator {
 			velocityLatitude = driftSpeed * Math.cos(windHeading);
 			velocityLongitude = driftSpeed * Math.sin(windHeading);
 
-			accelerationLatitude = (velocityLatitude - this.lastPacket.velocity.latitude) / safeDt;
-			accelerationLongitude = (velocityLongitude - this.lastPacket.velocity.longitude) / safeDt;
+			accelerationLatitude = (velocityLatitude - this.physics.velocityLatitude) / safeDt;
+			accelerationLongitude = (velocityLongitude - this.physics.velocityLongitude) / safeDt;
 
 			verticalVelocity += verticalAcceleration * safeDt;
 			altitude += verticalVelocity * safeDt;
@@ -103,18 +133,20 @@ export class TelemetryEmulator {
 			latitude += metersToLatitudeDelta(velocityLatitude * safeDt);
 			longitude += metersToLongitudeDelta(velocityLongitude * safeDt, latitude);
 
-			if (verticalVelocity <= 0 && !apogeeDetected) {
-				apogeeDetected = true;
-				parachuteDeployed = true;
+			if (verticalVelocity <= 0 && fsmState === "02") {
+				fsmState = "03"; // Apogee Reached
+			} else if (fsmState === "03") {
+				fsmState = "04"; // Chute Deployed on next calculation step
 			}
 
-			if (parachuteDeployed) {
+			if (fsmState === "04") {
 				verticalVelocity = Math.max(verticalVelocity, -7.5);
 				verticalAcceleration = Math.max(verticalAcceleration, -2.5);
 			}
 
 			altitude += (Math.random() - 0.5) * safeDt * 0.8;
 		} else if (t > FLIGHT_DURATION_SECONDS) {
+			fsmState = "04";
 			altitude = 0;
 			verticalVelocity = 0;
 			verticalAcceleration = 0;
@@ -123,6 +155,19 @@ export class TelemetryEmulator {
 			accelerationLatitude = 0;
 			accelerationLongitude = 0;
 		}
+
+		this.physics = {
+			altitude,
+			verticalVelocity,
+			verticalAcceleration,
+			velocityLatitude,
+			velocityLongitude,
+			accelerationLatitude,
+			accelerationLongitude,
+			latitude,
+			longitude,
+			fsmState,
+		};
 
 		const roll = 18 * Math.sin(t * 0.9);
 		const pitch = 14 * Math.sin(t * 0.45 + 0.8);
@@ -137,7 +182,7 @@ export class TelemetryEmulator {
 		const triboelectricFromDrift = (Math.abs(velocityLatitude) + Math.abs(velocityLongitude)) * 0.015;
 		const triboelectricVoltage = Math.max(
 			0,
-			triboelectricFromMotion + triboelectricFromDrift + triboelectricNoise + (parachuteDeployed ? 0.18 : 0),
+			triboelectricFromMotion + triboelectricFromDrift + triboelectricNoise + (fsmState === "04" ? 0.18 : 0),
 		);
 
 		const barometricAltitude = Math.max(0, altitude + (Math.random() - 0.5) * 2.2);
@@ -146,41 +191,33 @@ export class TelemetryEmulator {
 			3.45,
 			4.2,
 		);
-		const velocityTotal = Math.hypot(velocityLatitude, velocityLongitude, verticalVelocity);
 		const accelerationTotal = Math.hypot(accelerationLatitude, accelerationLongitude, verticalAcceleration);
 
-		const stateFlags = (launchDetected ? 1 : 0) | (apogeeDetected ? 2 : 0) | (parachuteDeployed ? 4 : 0);
-
 		const currentPacket: ParsedPacket = {
-			...this.lastPacket,
 			timestampMs: now.getTime(),
 			packetId: ++this.packetId,
 			raw: {
-				stateFlags,
+				fsmState: fsmState,
 				accelX: accelerationLatitude,
 				accelY: accelerationLongitude,
 				accelZ: verticalAcceleration,
 				gyroX: angularVelocityRoll,
 				gyroY: angularVelocityPitch,
 				gyroZ: angularVelocityYaw,
-				pressureScaled: barometricAltitude,
+				kfAltitudeAgl: Math.max(0, altitude),
 				triboVoltageRaw: triboelectricVoltage,
 				batteryVoltageRaw: batteryVoltage,
 				gpsLatOffset: degreesToMicrodegreesOffset(latitude, BASE_LATITUDE),
 				gpsLonOffset: degreesToMicrodegreesOffset(longitude, BASE_LONGITUDE),
-				gpsAltMeters: Math.max(0, altitude),
-				ky024Analog: parachuteDeployed ? 1 : 0,
+				kfVerticalVelocity: verticalVelocity,
+				ky024Analog: fsmState === "04" ? 1 : 0,
 			},
 			position: {
 				latitude,
 				longitude,
-				altitude: Math.max(0, altitude),
 			},
 			velocity: {
-				latitude: velocityLatitude,
-				longitude: velocityLongitude,
 				altitude: verticalVelocity,
-				total: velocityTotal,
 			},
 			acceleration: {
 				latitude: accelerationLatitude,
@@ -191,19 +228,17 @@ export class TelemetryEmulator {
 			orientation: {
 				roll,
 				pitch,
-				yaw,
+				yaw: 0,
 			},
 			angularVelocity: {
 				roll: angularVelocityRoll,
 				pitch: angularVelocityPitch,
 				yaw: angularVelocityYaw,
 			},
-			barometricAltitude: barometricAltitude,
+			barometricAltitude,
 			batteryVoltage,
 			triboelectricVoltage,
-			launchDetected,
-			apogeeDetected,
-			parachuteDeployed,
+			fsmState, // Outputs "00", "01", etc.
 		};
 
 		this.lastPacket = currentPacket;
@@ -213,38 +248,31 @@ export class TelemetryEmulator {
 	}
 
 	private createInitialPacket(now: Date): ParsedPacket {
-		const latitude = BASE_LATITUDE + (Math.random() - 0.5) * 0.0005;
-		const longitude = BASE_LONGITUDE + (Math.random() - 0.5) * 0.0005;
-
 		return {
 			timestampMs: now.getTime(),
 			packetId: ++this.packetId,
 			raw: {
-				stateFlags: 0,
+				fsmState: this.physics.fsmState,
 				accelX: 0,
 				accelY: 0,
 				accelZ: 0,
 				gyroX: 0,
 				gyroY: 0,
 				gyroZ: 0,
-				pressureScaled: 0,
+				kfAltitudeAgl: 0,
 				triboVoltageRaw: 0,
 				batteryVoltageRaw: 4.2,
-				gpsLatOffset: degreesToMicrodegreesOffset(latitude, BASE_LATITUDE),
-				gpsLonOffset: degreesToMicrodegreesOffset(longitude, BASE_LONGITUDE),
-				gpsAltMeters: 0,
+				gpsLatOffset: degreesToMicrodegreesOffset(this.physics.latitude, BASE_LATITUDE),
+				gpsLonOffset: degreesToMicrodegreesOffset(this.physics.longitude, BASE_LONGITUDE),
+				kfVerticalVelocity: 0,
 				ky024Analog: 0,
 			},
 			position: {
-				latitude,
-				longitude,
-				altitude: 0,
+				latitude: this.physics.latitude,
+				longitude: this.physics.longitude,
 			},
 			velocity: {
-				latitude: 0,
-				longitude: 0,
 				altitude: 0,
-				total: 0,
 			},
 			acceleration: {
 				latitude: 0,
@@ -265,9 +293,7 @@ export class TelemetryEmulator {
 			barometricAltitude: 0,
 			batteryVoltage: 4.2,
 			triboelectricVoltage: 0,
-			launchDetected: false,
-			apogeeDetected: false,
-			parachuteDeployed: false,
+			fsmState: this.physics.fsmState,
 		};
 	}
 

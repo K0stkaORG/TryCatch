@@ -8,10 +8,8 @@ import { useMemo } from "react";
 interface PositionGraphsProps {
 	chartData: CircularBuffer<{
 		receivedAt: number;
-		altitudeGPS: number;
 		altitudeBarometric: number;
 		altitudeVelocity: number;
-		totalVelocity: number;
 		altitudeAcceleration: number;
 		totalAcceleration: number;
 	}>;
@@ -70,15 +68,6 @@ export const PositionGraphs = ({ chartData, packetHeartbeat }: PositionGraphsPro
 						/>
 						<Line
 							type="monotone"
-							dataKey="altitudeGPS"
-							stroke="var(--chart-1)"
-							name="GPS"
-							strokeWidth={2}
-							dot={false}
-							isAnimationActive={false}
-						/>
-						<Line
-							type="monotone"
 							dataKey="altitudeBarometric"
 							stroke="var(--chart-2)"
 							name="Baro"
@@ -132,15 +121,6 @@ export const PositionGraphs = ({ chartData, packetHeartbeat }: PositionGraphsPro
 							name="Altitude"
 							stroke="var(--chart-1)"
 							strokeWidth={2.3}
-							dot={false}
-							isAnimationActive={false}
-						/>
-						<Line
-							type="monotone"
-							dataKey="totalVelocity"
-							name="Total"
-							stroke="var(--chart-2)"
-							strokeWidth={1.5}
 							dot={false}
 							isAnimationActive={false}
 						/>

@@ -1,3 +1,13 @@
+export const RocketFSMStates = {
+	"00": "Before Launch",
+	"01": "Armed",
+	"02": "Flight",
+	"03": "Apogee Reached",
+	"04": "Chute Deployed",
+} as const;
+
+export type RocketFSMState = keyof typeof RocketFSMStates;
+
 export type ValidPacket = {
 	id: number;
 	flightId: number;
@@ -6,32 +16,28 @@ export type ValidPacket = {
 		timestampMs: number;
 		packetId: number;
 		raw: {
-			stateFlags: number;
+			fsmState: string;
 			accelX: number;
 			accelY: number;
 			accelZ: number;
 			gyroX: number;
 			gyroY: number;
 			gyroZ: number;
-			pressureScaled: number;
+			kfAltitudeAgl: number;
 			triboVoltageRaw: number;
 			batteryVoltageRaw: number;
 			gpsLatOffset: number;
 			gpsLonOffset: number;
-			gpsAltMeters: number;
+			kfVerticalVelocity: number;
 			ky024Analog: number;
 		};
 
 		position: {
 			latitude: number;
 			longitude: number;
-			altitude: number;
 		};
 		velocity: {
-			latitude: number;
-			longitude: number;
 			altitude: number;
-			total: number;
 		};
 		acceleration: {
 			latitude: number;
@@ -57,9 +63,7 @@ export type ValidPacket = {
 
 		triboelectricVoltage: number;
 
-		launchDetected: boolean;
-		apogeeDetected: boolean;
-		parachuteDeployed: boolean;
+		fsmState: RocketFSMState;
 	};
 	receivedAt: Date;
 };

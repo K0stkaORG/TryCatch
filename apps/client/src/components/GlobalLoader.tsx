@@ -8,6 +8,7 @@ export const GlobalLoader = () => {
 
 	useEffect(() => {
 		if (isLoading) {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setProgress(10);
 			const timer = setInterval(() => {
 				setProgress((old) => {

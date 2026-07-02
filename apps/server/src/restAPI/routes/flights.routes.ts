@@ -92,34 +92,30 @@ flightsRouter.get(
 
 		if (flightPackets.length === 0) throw new UserRequestError("Flight not found");
 
-		// 1. Define all flat CSV headers explicitly
+		// 1. Define all flat CSV headers explicitly matching ValidPacket structure
 		const csvHeaders = [
 			"id",
 			"rawBytes",
 			"receivedAt",
 			"timestampMs",
 			"packetId",
-			"raw_stateFlags",
+			"raw_fsmState",
 			"raw_accelX",
 			"raw_accelY",
 			"raw_accelZ",
 			"raw_gyroX",
 			"raw_gyroY",
 			"raw_gyroZ",
-			"raw_pressureScaled",
+			"raw_kfAltitudeAgl",
 			"raw_triboVoltageRaw",
 			"raw_batteryVoltageRaw",
 			"raw_gpsLatOffset",
 			"raw_gpsLonOffset",
-			"raw_gpsAltMeters",
+			"raw_kfVerticalVelocity",
 			"raw_ky024Analog",
 			"position_latitude",
 			"position_longitude",
-			"position_altitude",
-			"velocity_latitude",
-			"velocity_longitude",
 			"velocity_altitude",
-			"velocity_total",
 			"acceleration_latitude",
 			"acceleration_longitude",
 			"acceleration_altitude",
@@ -133,84 +129,86 @@ flightsRouter.get(
 			"barometricAltitude",
 			"batteryVoltage",
 			"triboelectricVoltage",
-			"launchDetected",
-			"apogeeDetected",
-			"parachuteDeployed",
+			"fsmState",
 		];
+
+		// Helper to safely format CSV values (handles commas, quotes, and nullish data)
+		const formatCsvValue = (val: any): string => {
+			if (val === null || val === undefined) return "";
+			const str = String(val);
+			if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+				return `"${str.replace(/"/g, '""')}"`;
+			}
+			return str;
+		};
 
 		// 2. Map rows by pulling out every nested property safely
 		const csvRows = flightPackets.map((packet) => {
-			// Cast or explicitly type the database response to match your ValidPacket structure
 			const p = packet.parsedData as ValidPacket["parsedData"] | null;
 
 			const columns = [
 				packet.id,
-				`"${packet.rawBytes.replace(/"/g, '""')}"`, // Escape quotes inside raw strings
+				packet.rawBytes,
 				packet.receivedAt.toISOString(),
 
 				// Top-level parsed data
-				p?.timestampMs ?? "",
-				p?.packetId ?? "",
+				p?.timestampMs,
+				p?.packetId,
 
 				// Raw sub-object
-				p?.raw?.stateFlags ?? "",
-				p?.raw?.accelX ?? "",
-				p?.raw?.accelY ?? "",
-				p?.raw?.accelZ ?? "",
-				p?.raw?.gyroX ?? "",
-				p?.raw?.gyroY ?? "",
-				p?.raw?.gyroZ ?? "",
-				p?.raw?.pressureScaled ?? "",
-				p?.raw?.triboVoltageRaw ?? "",
-				p?.raw?.batteryVoltageRaw ?? "",
-				p?.raw?.gpsLatOffset ?? "",
-				p?.raw?.gpsLonOffset ?? "",
-				p?.raw?.gpsAltMeters ?? "",
-				p?.raw?.ky024Analog ?? "",
+				p?.raw?.fsmState,
+				p?.raw?.accelX,
+				p?.raw?.accelY,
+				p?.raw?.accelZ,
+				p?.raw?.gyroX,
+				p?.raw?.gyroY,
+				p?.raw?.gyroZ,
+				p?.raw?.kfAltitudeAgl,
+				p?.raw?.triboVoltageRaw,
+				p?.raw?.batteryVoltageRaw,
+				p?.raw?.gpsLatOffset,
+				p?.raw?.gpsLonOffset,
+				p?.raw?.kfVerticalVelocity,
+				p?.raw?.ky024Analog,
 
 				// Position sub-object
-				p?.position?.latitude ?? "",
-				p?.position?.longitude ?? "",
-				p?.position?.altitude ?? "",
+				p?.position?.latitude,
+				p?.position?.longitude,
 
 				// Velocity sub-object
-				p?.velocity?.latitude ?? "",
-				p?.velocity?.longitude ?? "",
-				p?.velocity?.altitude ?? "",
-				p?.velocity?.total ?? "",
+				p?.velocity?.altitude,
 
 				// Acceleration sub-object
-				p?.acceleration?.latitude ?? "",
-				p?.acceleration?.longitude ?? "",
-				p?.acceleration?.altitude ?? "",
-				p?.acceleration?.total ?? "",
+				p?.acceleration?.latitude,
+				p?.acceleration?.longitude,
+				p?.acceleration?.altitude,
+				p?.acceleration?.total,
 
 				// Orientation sub-object
-				p?.orientation?.roll ?? "",
-				p?.orientation?.pitch ?? "",
-				p?.orientation?.yaw ?? "",
+				p?.orientation?.roll,
+				p?.orientation?.pitch,
+				p?.orientation?.yaw,
 
 				// Angular Velocity sub-object
-				p?.angularVelocity?.roll ?? "",
-				p?.angularVelocity?.pitch ?? "",
-				p?.angularVelocity?.yaw ?? "",
+				p?.angularVelocity?.roll,
+				p?.angularVelocity?.pitch,
+				p?.angularVelocity?.yaw,
 
 				// Remaining flat telemetry fields
-				p?.barometricAltitude ?? "",
-				p?.batteryVoltage ?? "",
-				p?.triboelectricVoltage ?? "",
-				p?.launchDetected !== undefined ? String(p.launchDetected) : "",
-				p?.apogeeDetected !== undefined ? String(p.apogeeDetected) : "",
-				p?.parachuteDeployed !== undefined ? String(p.parachuteDeployed) : "",
+				p?.barometricAltitude,
+				p?.batteryVoltage,
+				p?.triboelectricVoltage,
+				p?.fsmState,
 			];
 
-			return columns.join(",");
+			return columns.map(formatCsvValue).join(",");
 		});
 
 		// 3. Assemble full content
 		const csvContent = [csvHeaders.join(","), ...csvRows].join("\n");
 
 		// 4. Send back as actual file download response
+
 		res.setHeader("Content-Type", "text/csv");
 		res.setHeader("Content-Disposition", `attachment; filename=flight_${flightId}_packets.csv`);
 		res.write(csvContent);

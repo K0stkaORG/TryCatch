@@ -1,4 +1,4 @@
-import { Cpu, RadioTower, ShieldAlert, SlidersHorizontal } from "lucide-react";
+import { Brain, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -36,68 +36,50 @@ const commandCategories: RocketCommandCategory[] = [
 		icon: <SlidersHorizontal className="size-4" />,
 		commands: [
 			{
-				label: "Deploy servo",
-				description: "Send the deploy-servo command.",
+				label: "Deploy parachute",
+				description: "Release the nose-cone retaining latches.",
 				bytes: [0x47, 0x43, 0xaa, 0x00],
 			},
 			{
-				label: "Reset servo",
-				description: "Return the servo to its reset position.",
+				label: "Lock servos",
+				description: "Lock the nose-cone retaining latches.",
 				bytes: [0x47, 0x43, 0x55, 0x00],
 				variant: "secondary",
 			},
 		],
 	},
 	{
-		title: "Recovery",
-		icon: <ShieldAlert className="size-4" />,
+		title: "Finite state machine",
+		icon: <Brain className="size-4" />,
 		commands: [
 			{
-				label: "Deploy drogue",
-				description: "Trigger drogue deployment.",
-				bytes: [0x47, 0x43, 0xab, 0x00],
-				variant: "destructive",
+				label: "Force state to Armed",
+				description: "Force the rocket's state to Armed.",
+				bytes: [0x47, 0x43, 0x01, 0x01],
+				variant: "secondary",
 			},
 			{
-				label: "Deploy main",
-				description: "Trigger main parachute deployment.",
-				bytes: [0x47, 0x43, 0xab, 0x01],
-				variant: "destructive",
-			},
-		],
-	},
-	{
-		title: "Radio",
-		icon: <RadioTower className="size-4" />,
-		commands: [
-			{
-				label: "Ping rocket",
-				description: "Request an immediate command acknowledgement.",
-				bytes: [0x47, 0x43, 0xac, 0x00],
-				variant: "outline",
+				label: "Force state to Flight",
+				description: "Force the rocket's state to Flight.",
+				bytes: [0x47, 0x43, 0x01, 0x02],
+				variant: "secondary",
 			},
 			{
-				label: "Request status",
-				description: "Ask the rocket to send a status update.",
-				bytes: [0x47, 0x43, 0xac, 0x01],
-				variant: "outline",
-			},
-		],
-	},
-	{
-		title: "System",
-		icon: <Cpu className="size-4" />,
-		commands: [
-			{
-				label: "Reset flight computer",
-				description: "Request a flight-computer reset.",
-				bytes: [0x47, 0x43, 0xad, 0x00],
-				variant: "destructive",
+				label: "Force state to Apogee Reached",
+				description: "Force the rocket's state to Apogee Reached.",
+				bytes: [0x47, 0x43, 0x01, 0x03],
+				variant: "secondary",
 			},
 			{
-				label: "Clear command latch",
-				description: "Clear latched command state on the rocket.",
-				bytes: [0x47, 0x43, 0xad, 0x01],
+				label: "Force state to Chute Deployed",
+				description: "Force the rocket's state to Chute Deployed.",
+				bytes: [0x47, 0x43, 0x01, 0x04],
+				variant: "secondary",
+			},
+			{
+				label: "Force state to Before Launch",
+				description: "Force the rocket's state to Before Launch.",
+				bytes: [0x47, 0x43, 0x01, 0x00],
 				variant: "secondary",
 			},
 		],

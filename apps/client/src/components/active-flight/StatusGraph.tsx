@@ -3,14 +3,13 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 
 import { TelemetryPanel } from "@/components/active-flight/TelemetryPanel";
 import { CircularBuffer } from "@/lib/circularBuffer";
+import { RocketFSMState } from "@try-catch/shared-types";
 import { useMemo } from "react";
 
 interface StatusGraphProps {
 	statusData: CircularBuffer<{
 		receivedAt: number;
-		launchDetected: boolean;
-		apogeeDetected: boolean;
-		parachuteDeployed: boolean;
+		fsmState: RocketFSMState;
 	}>;
 	packetHeartbeat: number;
 }
@@ -20,9 +19,7 @@ export const StatusGraph = ({ statusData, packetHeartbeat }: StatusGraphProps) =
 		() =>
 			statusData.buffer.map((item) => ({
 				receivedAt: item.receivedAt,
-				launchDetected: item.launchDetected ? 1 : 0,
-				apogeeDetected: item.apogeeDetected ? 1 : 0,
-				parachuteDeployed: item.parachuteDeployed ? 1 : 0,
+				fsmStateNumber: item.fsmState,
 			})),
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[packetHeartbeat],
@@ -30,7 +27,7 @@ export const StatusGraph = ({ statusData, packetHeartbeat }: StatusGraphProps) =
 
 	return (
 		<TelemetryPanel
-			title="Status"
+			title="FSM State"
 			className="h-44">
 			<ResponsiveContainer>
 				<LineChart
@@ -51,16 +48,15 @@ export const StatusGraph = ({ statusData, packetHeartbeat }: StatusGraphProps) =
 						interval={0}
 					/>
 					<YAxis
-						domain={[0, 1]}
-						ticks={[0, 1]}
-						tickFormatter={(value) => (value === 1 ? "On" : "Off")}
+						type="number"
+						domain={["dataMin", "dataMax"]}
 						tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-						width={40}
+						tickMargin={8}
 					/>
 					<Tooltip
 						labelStyle={{ color: "var(--foreground)" }}
 						labelFormatter={(value) => formatShortTime(value as number)}
-						formatter={(value, name) => [(value as number) ? "On" : "Off", name as string]}
+						formatter={(value) => [value, "FSM State"]}
 						contentStyle={{
 							backgroundColor: "var(--card)",
 							borderColor: "var(--border)",
@@ -69,27 +65,9 @@ export const StatusGraph = ({ statusData, packetHeartbeat }: StatusGraphProps) =
 					/>
 					<Line
 						type="stepAfter"
-						dataKey="launchDetected"
-						name="Launch"
+						dataKey="fsmState"
+						name="FSM State"
 						stroke="var(--chart-1)"
-						strokeWidth={2}
-						dot={false}
-						isAnimationActive={false}
-					/>
-					<Line
-						type="stepAfter"
-						dataKey="apogeeDetected"
-						name="Apogee"
-						stroke="var(--chart-2)"
-						strokeWidth={2}
-						dot={false}
-						isAnimationActive={false}
-					/>
-					<Line
-						type="stepAfter"
-						dataKey="parachuteDeployed"
-						name="Parachute"
-						stroke="var(--chart-3)"
 						strokeWidth={2}
 						dot={false}
 						isAnimationActive={false}

@@ -1,4 +1,11 @@
-import { ClientToServerEvents, Flight, ServerToClientEvents, ValidPacket } from "@try-catch/shared-types";
+/* eslint-disable react-hooks/purity */
+import {
+	ClientToServerEvents,
+	Flight,
+	RocketFSMState,
+	ServerToClientEvents,
+	ValidPacket,
+} from "@try-catch/shared-types";
 import { useEffect, useState } from "react";
 import { Socket, io } from "socket.io-client";
 
@@ -24,15 +31,11 @@ export const usePackets = (flightId: Flight["id"]) => {
 	const [packetLossHeartbeat, setPacketLossHeartbeat] = useState(0);
 
 	const [packetStreams] = useState({
-		position: {
+		gpsPosition: {
 			latlong: new CircularBuffer<[number, number]>(PACKET_BUFFER_SIZE, [0, 0]),
-			altitude: new CircularBuffer(1, 0),
 		},
 		velocity: {
-			latitude: new CircularBuffer(1, 0),
-			longitude: new CircularBuffer(1, 0),
 			altitude: new CircularBuffer(1, 0),
-			total: new CircularBuffer(1, 0),
 		},
 		acceleration: {
 			latitude: new CircularBuffer(1, 0),
@@ -45,27 +48,19 @@ export const usePackets = (flightId: Flight["id"]) => {
 			pitch: new CircularBuffer(1, 0),
 			yaw: new CircularBuffer(1, 0),
 		},
-		flags: {
-			launchDetected: new CircularBuffer(1, false),
-			apogeeDetected: new CircularBuffer(1, false),
-			parachuteDeployed: new CircularBuffer(1, false),
-		},
+		fsmState: new CircularBuffer<RocketFSMState>(1, "00"),
 		positionGraph: new CoarseCircularBuffer<{
 			receivedAt: number;
-			altitudeGPS: number;
 			altitudeBarometric: number;
 			altitudeVelocity: number;
-			totalVelocity: number;
 			altitudeAcceleration: number;
 			totalAcceleration: number;
 		}>(
 			PACKET_BUFFER_SIZE,
 			{
 				receivedAt: Date.now(),
-				altitudeGPS: 0,
 				altitudeBarometric: 0,
 				altitudeVelocity: 0,
-				totalVelocity: 0,
 				altitudeAcceleration: 0,
 				totalAcceleration: 0,
 			},
@@ -90,17 +85,12 @@ export const usePackets = (flightId: Flight["id"]) => {
 	const handlePacket = (packet: Pick<ValidPacket, "receivedAt" | "parsedData">) => {
 		const receivedAt = new Date(packet.receivedAt).getTime();
 
-		packetStreams.position.latlong.push([
+		packetStreams.gpsPosition.latlong.push([
 			packet.parsedData.position.latitude,
 			packet.parsedData.position.longitude,
 		]);
 
-		packetStreams.position.altitude.push(packet.parsedData.position.altitude);
-
-		packetStreams.velocity.latitude.push(packet.parsedData.velocity.latitude);
-		packetStreams.velocity.longitude.push(packet.parsedData.velocity.longitude);
 		packetStreams.velocity.altitude.push(packet.parsedData.velocity.altitude);
-		packetStreams.velocity.total.push(packet.parsedData.velocity.total);
 
 		packetStreams.acceleration.latitude.push(packet.parsedData.acceleration.latitude);
 		packetStreams.acceleration.longitude.push(packet.parsedData.acceleration.longitude);
@@ -111,16 +101,12 @@ export const usePackets = (flightId: Flight["id"]) => {
 		packetStreams.orientation.pitch.push(packet.parsedData.orientation.pitch);
 		packetStreams.orientation.yaw.push(packet.parsedData.orientation.yaw);
 
-		packetStreams.flags.launchDetected.push(packet.parsedData.launchDetected);
-		packetStreams.flags.apogeeDetected.push(packet.parsedData.apogeeDetected);
-		packetStreams.flags.parachuteDeployed.push(packet.parsedData.parachuteDeployed);
+		packetStreams.fsmState.push(packet.parsedData.fsmState);
 
 		packetStreams.positionGraph.push({
 			receivedAt,
-			altitudeGPS: packet.parsedData.position.altitude,
 			altitudeBarometric: packet.parsedData.barometricAltitude,
 			altitudeVelocity: packet.parsedData.velocity.altitude,
-			totalVelocity: packet.parsedData.velocity.total,
 			altitudeAcceleration: packet.parsedData.acceleration.altitude,
 			totalAcceleration: packet.parsedData.acceleration.total,
 		});

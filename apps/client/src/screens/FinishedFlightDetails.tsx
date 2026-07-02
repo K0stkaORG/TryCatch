@@ -116,7 +116,7 @@ const FinishedFlightScreen = () => {
 					<div className="grid gap-3 xl:grid-cols-2">
 						{hasData ? (
 							<StatusGraph
-								statusData={packetStreams.statusGraph}
+								statusData={packetStreams.fsmState}
 								packetHeartbeat={packetHeartbeat}
 							/>
 						) : (
@@ -149,21 +149,10 @@ const FinishedFlightScreen = () => {
 				<div className="row-span-2 min-h-80">
 					{hasData ? (
 						<Map
-							position={{
-								latlong: packetStreams.position.latlong,
-								altitude: packetStreams.position.altitude,
+							gpsPosition={{
+								latlong: packetStreams.gpsPosition.latlong,
 							}}
-							velocity={{
-								latitude: packetStreams.velocity.latitude,
-								longitude: packetStreams.velocity.longitude,
-							}}
-							acceleration={{
-								latitude: packetStreams.acceleration.latitude,
-								longitude: packetStreams.acceleration.longitude,
-							}}
-							parachudeDeployed={packetStreams.flags.parachuteDeployed.last}
 							packetHeartbeat={packetHeartbeat}
-							variant="archive"
 						/>
 					) : (
 						<TelemetryPanel title="Map">
