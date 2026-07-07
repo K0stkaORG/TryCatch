@@ -3,50 +3,48 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 
 import { TelemetryPanel } from "@/components/active-flight/TelemetryPanel";
 import { CircularBuffer } from "@/lib/circularBuffer";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
-interface BatteryGraphProps {
-	batteryData: CircularBuffer<{
-		receivedAt: number;
-		value: number;
-	}>;
-	hallSensorData: CircularBuffer<{
+interface PressureGraphProps {
+	pressureHpaGraph: CircularBuffer<{
 		receivedAt: number;
 		value: number;
 	}>;
 	packetHeartbeat: number;
-	flightStart: number;
+	isArchived?: boolean;
+	flightStart?: number;
 }
 
-export const BatteryGraph = ({
-	batteryData,
-	hallSensorData: hallEffectData,
-	packetHeartbeat,
-	flightStart,
-}: BatteryGraphProps) => {
-	const [mode, setMode] = useState<"battery" | "hallSensor">("battery");
+const formatCompact = (value: number) => {
+	if (!Number.isFinite(value)) return "";
+	const abs = Math.abs(value);
 
+	if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+	if (abs >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
+	if (abs >= 100) return value.toFixed(0);
+	if (abs >= 10) return value.toFixed(1);
+	return value.toFixed(2);
+};
+
+export const PressureGraph = ({ pressureHpaGraph, packetHeartbeat, isArchived, flightStart }: PressureGraphProps) => {
 	const chartData = useMemo(
-		() => (mode === "battery" ? [...batteryData.buffer] : [...hallEffectData.buffer]),
+		() => [...pressureHpaGraph.buffer],
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[packetHeartbeat, mode],
+		[packetHeartbeat],
 	);
-
-	const handleModeToggle = () => setMode((prev) => (prev === "battery" ? "hallSensor" : "battery"));
 
 	return (
 		<TelemetryPanel
-			title={mode === "battery" ? "Battery" : "Hall sensor"}
-			onDoubleClick={handleModeToggle}
-			className="h-44">
+			title="Pressure"
+			className="h-44 xl:h-full">
 			<ResponsiveContainer>
 				<AreaChart
 					data={chartData}
-					syncId="telemetry"
+					syncId={isArchived ? "telemetry" : undefined}
 					margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
 					<defs>
 						<linearGradient
-							id="batteryGradient"
+							id="pressureGradient"
 							x1="0"
 							y1="0"
 							x2="0"
@@ -74,24 +72,20 @@ export const BatteryGraph = ({
 						domain={["dataMin", "dataMax"]}
 						tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
 						tickMargin={8}
-						tickFormatter={formatArchivedAxisTime(flightStart)}
+						tickFormatter={formatArchivedAxisTime(flightStart ?? Date.now())}
 						interval={0}
 					/>
 					<YAxis
 						tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-						width={50}
+						width={66}
 						tickMargin={6}
-						unit={mode === "battery" ? " V" : ""}
-						domain={[0, "auto"]}
+						tickFormatter={formatCompact}
+						unit=" V"
 					/>
 					<Tooltip
 						labelStyle={{ color: "var(--foreground)" }}
 						labelFormatter={(value) => formatShortTime(value as number)}
-						formatter={(value) =>
-							mode === "battery"
-								? [(value as number).toFixed(2) + " V", "Battery"]
-								: [value, "Hall sensor"]
-						}
+						formatter={(value) => (value as number).toFixed(2) + " Hpa"}
 						contentStyle={{
 							backgroundColor: "var(--card)",
 							borderColor: "var(--border)",
@@ -102,7 +96,7 @@ export const BatteryGraph = ({
 						type="monotone"
 						dataKey="value"
 						stroke="var(--chart-1)"
-						fill="url(#batteryGradient)"
+						fill="url(#pressureGradient)"
 						strokeWidth={2}
 						dot={false}
 						isAnimationActive={false}

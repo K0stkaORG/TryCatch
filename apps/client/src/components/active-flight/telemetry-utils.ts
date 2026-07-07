@@ -8,3 +8,6 @@ export const formatShortTime = (value: Date | string | number) =>
 	});
 
 export const formatAxisTime = (value: number) => ((value - Date.now()) / 1000).toFixed(1) + "s";
+
+export const formatArchivedAxisTime = (flightStart: number) => (value: number) =>
+	((value - flightStart) / 1000).toFixed(1) + "s";

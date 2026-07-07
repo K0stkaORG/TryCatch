@@ -1,4 +1,4 @@
-import { formatAxisTime, formatShortTime } from "@/components/active-flight/telemetry-utils";
+import { formatArchivedAxisTime, formatShortTime } from "@/components/active-flight/telemetry-utils";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { TelemetryPanel } from "@/components/active-flight/TelemetryPanel";
@@ -14,6 +14,8 @@ interface PositionGraphsProps {
 		totalAcceleration: number;
 	}>;
 	packetHeartbeat: number;
+	isArchived?: boolean;
+	flightStart?: number;
 }
 
 const formatTick = (value: number) => {
@@ -23,9 +25,11 @@ const formatTick = (value: number) => {
 	return value.toFixed(2);
 };
 
-export const PositionGraphs = ({ chartData, packetHeartbeat }: PositionGraphsProps) => {
-	// eslint-disable-next-line react-hooks/preserve-manual-memoization, react-hooks/exhaustive-deps
+export const PositionGraphs = ({ chartData, packetHeartbeat, isArchived, flightStart }: PositionGraphsProps) => {
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	const chartDataBuffer = useMemo(() => [...chartData.buffer], [packetHeartbeat]);
+
+	const timeFormatter = formatArchivedAxisTime(flightStart ?? Date.now());
 
 	return (
 		<div className="grid h-full gap-3 xl:grid-cols-3">
@@ -35,6 +39,7 @@ export const PositionGraphs = ({ chartData, packetHeartbeat }: PositionGraphsPro
 				<ResponsiveContainer>
 					<LineChart
 						data={chartDataBuffer}
+						syncId={isArchived ? "telemetry" : undefined}
 						margin={{ top: 0, right: 9, left: 0, bottom: 0 }}>
 						<CartesianGrid
 							strokeDasharray="3 3"
@@ -46,7 +51,7 @@ export const PositionGraphs = ({ chartData, packetHeartbeat }: PositionGraphsPro
 							type="number"
 							domain={["dataMin", "dataMax"]}
 							tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
-							tickFormatter={formatAxisTime}
+							tickFormatter={timeFormatter}
 							interval={0}
 						/>
 						<YAxis
@@ -85,6 +90,7 @@ export const PositionGraphs = ({ chartData, packetHeartbeat }: PositionGraphsPro
 				<ResponsiveContainer>
 					<LineChart
 						data={chartDataBuffer}
+						syncId={isArchived ? "telemetry" : undefined}
 						margin={{ top: 0, right: 9, left: 0, bottom: 0 }}>
 						<CartesianGrid
 							strokeDasharray="3 3"
@@ -96,7 +102,7 @@ export const PositionGraphs = ({ chartData, packetHeartbeat }: PositionGraphsPro
 							domain={["dataMin", "dataMax"]}
 							type="number"
 							tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
-							tickFormatter={formatAxisTime}
+							tickFormatter={timeFormatter}
 							interval={0}
 						/>
 						<YAxis
@@ -134,6 +140,7 @@ export const PositionGraphs = ({ chartData, packetHeartbeat }: PositionGraphsPro
 				<ResponsiveContainer>
 					<LineChart
 						data={chartDataBuffer}
+						syncId={isArchived ? "telemetry" : undefined}
 						margin={{ top: 4, right: 6, left: 2, bottom: 0 }}>
 						<CartesianGrid
 							strokeDasharray="3 3"
@@ -145,7 +152,7 @@ export const PositionGraphs = ({ chartData, packetHeartbeat }: PositionGraphsPro
 							type="number"
 							domain={["dataMin", "dataMax"]}
 							tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
-							tickFormatter={formatAxisTime}
+							tickFormatter={timeFormatter}
 							interval={0}
 						/>
 						<YAxis

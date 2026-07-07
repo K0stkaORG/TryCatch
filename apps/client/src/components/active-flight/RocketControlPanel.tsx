@@ -50,6 +50,18 @@ const commandCategories: RocketCommandCategory[] = [
 		],
 	},
 	{
+		title: "Reset",
+		icon: <SlidersHorizontal className="size-4" />,
+		commands: [
+			{
+				label: "Reset state",
+				description: "Reset internal rocket state.",
+				bytes: [0x47, 0x43, 0x67, 0x67],
+				variant: "destructive",
+			},
+		],
+	},
+	{
 		title: "Finite state machine",
 		icon: <Brain className="size-4" />,
 		commands: [

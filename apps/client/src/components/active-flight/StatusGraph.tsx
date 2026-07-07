@@ -1,4 +1,4 @@
-import { formatAxisTime, formatShortTime } from "@/components/active-flight/telemetry-utils";
+import { formatArchivedAxisTime, formatShortTime } from "@/components/active-flight/telemetry-utils";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { TelemetryPanel } from "@/components/active-flight/TelemetryPanel";
@@ -12,9 +12,10 @@ interface StatusGraphProps {
 		fsmState: RocketFSMState;
 	}>;
 	packetHeartbeat: number;
+	flightStart: number;
 }
 
-export const StatusGraph = ({ statusData, packetHeartbeat }: StatusGraphProps) => {
+export const StatusGraph = ({ statusData, packetHeartbeat, flightStart }: StatusGraphProps) => {
 	const chartData = useMemo(
 		() =>
 			statusData.buffer.map((item) => ({
@@ -32,6 +33,7 @@ export const StatusGraph = ({ statusData, packetHeartbeat }: StatusGraphProps) =
 			<ResponsiveContainer>
 				<LineChart
 					data={chartData}
+					syncId="telemetry"
 					margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
 					<CartesianGrid
 						strokeDasharray="3 3"
@@ -44,7 +46,7 @@ export const StatusGraph = ({ statusData, packetHeartbeat }: StatusGraphProps) =
 						domain={["dataMin", "dataMax"]}
 						tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
 						tickMargin={8}
-						tickFormatter={formatAxisTime}
+						tickFormatter={formatArchivedAxisTime(flightStart)}
 						interval={0}
 					/>
 					<YAxis

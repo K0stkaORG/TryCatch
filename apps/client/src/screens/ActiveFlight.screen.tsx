@@ -82,8 +82,8 @@ const ActiveFlightScreen = () => {
 									altitude: packetStreams.velocity.altitude.last,
 								},
 								acceleration: {
-									latitude: packetStreams.acceleration.latitude.last,
-									longitude: packetStreams.acceleration.longitude.last,
+									x: packetStreams.acceleration.x.last,
+									y: packetStreams.acceleration.y.last,
 									altitude: packetStreams.acceleration.altitude.last,
 									total: packetStreams.acceleration.total.last,
 								},
@@ -124,6 +124,8 @@ const ActiveFlightScreen = () => {
 						<StatusDisplay
 							fsmState={packetStreams.fsmState.last}
 							batteryVoltage={packetStreams.batteryVoltage.last}
+							pressureHpa={packetStreams.pressureHpa.last}
+							hallEffect={packetStreams.hallEffect.last}
 						/>
 					</div>
 				</div>

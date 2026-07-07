@@ -107,6 +107,7 @@ flightsRouter.get(
 			"raw_gyroY",
 			"raw_gyroZ",
 			"raw_kfAltitudeAgl",
+			"raw_pressure",
 			"raw_triboVoltageRaw",
 			"raw_batteryVoltageRaw",
 			"raw_gpsLatOffset",
@@ -116,8 +117,8 @@ flightsRouter.get(
 			"position_latitude",
 			"position_longitude",
 			"velocity_altitude",
-			"acceleration_latitude",
-			"acceleration_longitude",
+			"acceleration_x",
+			"acceleration_y",
 			"acceleration_altitude",
 			"acceleration_total",
 			"orientation_roll",
@@ -127,6 +128,7 @@ flightsRouter.get(
 			"angularVelocity_pitch",
 			"angularVelocity_yaw",
 			"barometricAltitude",
+			"pressureHpa",
 			"batteryVoltage",
 			"triboelectricVoltage",
 			"fsmState",
@@ -136,9 +138,10 @@ flightsRouter.get(
 		const formatCsvValue = (val: any): string => {
 			if (val === null || val === undefined) return "";
 			const str = String(val);
-			if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+
+			if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r"))
 				return `"${str.replace(/"/g, '""')}"`;
-			}
+
 			return str;
 		};
 
@@ -164,6 +167,7 @@ flightsRouter.get(
 				p?.raw?.gyroY,
 				p?.raw?.gyroZ,
 				p?.raw?.kfAltitudeAgl,
+				p?.raw?.rawPressure,
 				p?.raw?.triboVoltageRaw,
 				p?.raw?.batteryVoltageRaw,
 				p?.raw?.gpsLatOffset,
@@ -179,8 +183,8 @@ flightsRouter.get(
 				p?.velocity?.altitude,
 
 				// Acceleration sub-object
-				p?.acceleration?.latitude,
-				p?.acceleration?.longitude,
+				p?.acceleration?.x,
+				p?.acceleration?.y,
 				p?.acceleration?.altitude,
 				p?.acceleration?.total,
 
@@ -196,6 +200,7 @@ flightsRouter.get(
 
 				// Remaining flat telemetry fields
 				p?.barometricAltitude,
+				p?.pressureHpa,
 				p?.batteryVoltage,
 				p?.triboelectricVoltage,
 				p?.fsmState,

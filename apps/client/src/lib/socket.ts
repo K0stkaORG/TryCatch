@@ -11,7 +11,7 @@ import { Socket, io } from "socket.io-client";
 
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { CircularBuffer, CoarseCircularBuffer } from "./circularBuffer";
+import { CircularBuffer } from "./circularBuffer";
 
 export const PACKET_BUFFER_SIZE = 80;
 export const PACKET_LOSS_BUFFER_SIZE = 10;
@@ -38,8 +38,8 @@ export const usePackets = (flightId: Flight["id"]) => {
 			altitude: new CircularBuffer(1, 0),
 		},
 		acceleration: {
-			latitude: new CircularBuffer(1, 0),
-			longitude: new CircularBuffer(1, 0),
+			x: new CircularBuffer(1, 0),
+			y: new CircularBuffer(1, 0),
 			altitude: new CircularBuffer(1, 0),
 			total: new CircularBuffer(1, 0),
 		},
@@ -49,36 +49,30 @@ export const usePackets = (flightId: Flight["id"]) => {
 			yaw: new CircularBuffer(1, 0),
 		},
 		fsmState: new CircularBuffer<RocketFSMState>(1, "00"),
-		positionGraph: new CoarseCircularBuffer<{
+		positionGraph: new CircularBuffer<{
 			receivedAt: number;
 			altitudeBarometric: number;
 			altitudeVelocity: number;
 			altitudeAcceleration: number;
 			totalAcceleration: number;
-		}>(
-			PACKET_BUFFER_SIZE,
-			{
-				receivedAt: Date.now(),
-				altitudeBarometric: 0,
-				altitudeVelocity: 0,
-				altitudeAcceleration: 0,
-				totalAcceleration: 0,
-			},
-			2,
-		),
+		}>(PACKET_BUFFER_SIZE, {
+			receivedAt: Date.now(),
+			altitudeBarometric: 0,
+			altitudeVelocity: 0,
+			altitudeAcceleration: 0,
+			totalAcceleration: 0,
+		}),
 		barometricAltitude: new CircularBuffer(1, 0),
+		pressureHpa: new CircularBuffer(1, 0),
 		batteryVoltage: new CircularBuffer(1, 0),
-		triboelectricVoltage: new CoarseCircularBuffer<{
+		triboelectricVoltage: new CircularBuffer<{
 			receivedAt: number;
 			value: number;
-		}>(
-			PACKET_BUFFER_SIZE,
-			{
-				receivedAt: Date.now(),
-				value: 0,
-			},
-			1,
-		),
+		}>(PACKET_BUFFER_SIZE, {
+			receivedAt: Date.now(),
+			value: 0,
+		}),
+		hallEffect: new CircularBuffer(1, 0),
 		packetLoss: new CircularBuffer(PACKET_LOSS_BUFFER_SIZE, 0),
 	});
 
@@ -92,8 +86,8 @@ export const usePackets = (flightId: Flight["id"]) => {
 
 		packetStreams.velocity.altitude.push(packet.parsedData.velocity.altitude);
 
-		packetStreams.acceleration.latitude.push(packet.parsedData.acceleration.latitude);
-		packetStreams.acceleration.longitude.push(packet.parsedData.acceleration.longitude);
+		packetStreams.acceleration.x.push(packet.parsedData.acceleration.x);
+		packetStreams.acceleration.y.push(packet.parsedData.acceleration.y);
 		packetStreams.acceleration.altitude.push(packet.parsedData.acceleration.altitude);
 		packetStreams.acceleration.total.push(packet.parsedData.acceleration.total);
 
@@ -113,12 +107,16 @@ export const usePackets = (flightId: Flight["id"]) => {
 
 		packetStreams.barometricAltitude.push(packet.parsedData.barometricAltitude);
 
+		packetStreams.pressureHpa.push(packet.parsedData.pressureHpa);
+
 		packetStreams.batteryVoltage.push(packet.parsedData.batteryVoltage);
 
 		packetStreams.triboelectricVoltage.push({
 			receivedAt,
 			value: packet.parsedData.triboelectricVoltage,
 		});
+
+		packetStreams.hallEffect.push(packet.parsedData.hallSensor);
 
 		setPacketHeartbeat(Date.now());
 	};

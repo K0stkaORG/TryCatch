@@ -9,8 +9,8 @@ import { logger } from "./logger";
 import { TelemetryEmulator } from "./telemetryEmulator";
 
 const COMMIT_EVERY_N_PACKETS = 10;
-const EXPECTED_PACKETS_PER_SECOND = 2;
-const PACKET_LOSS_HEARTBEAT_INTERVAL_MS = 5000;
+const EXPECTED_PACKETS_PER_INTERVAL = 10;
+const PACKET_LOSS_HEARTBEAT_INTERVAL_MS = 4000;
 
 export class ActiveFlightHandler {
 	private static _instance: ActiveFlightHandler | undefined;
@@ -23,6 +23,8 @@ export class ActiveFlightHandler {
 
 	private port: SerialPort | undefined;
 	private telemetryEmulator: TelemetryEmulator | undefined;
+
+	private serialAccumulator: Buffer = Buffer.alloc(0);
 
 	private constructor(
 		public readonly flight: Pick<Flight, "id" | "name">,
@@ -46,12 +48,12 @@ export class ActiveFlightHandler {
 				packetsReceivedInInterval++;
 			}
 
-			const expectedPackets = (EXPECTED_PACKETS_PER_SECOND * PACKET_LOSS_HEARTBEAT_INTERVAL_MS) / 1000;
-			const percentLoss = ((expectedPackets - packetsReceivedInInterval) / expectedPackets) * 100;
+			const percentLoss =
+				((EXPECTED_PACKETS_PER_INTERVAL - packetsReceivedInInterval) / EXPECTED_PACKETS_PER_INTERVAL) * 100;
 
 			if (percentLoss > 50)
 				logger.warn(
-					`Severe packet loss detected: ${percentLoss.toFixed(2)}% (${packetsReceivedInInterval}/${expectedPackets} packets received in the last ${PACKET_LOSS_HEARTBEAT_INTERVAL_MS / 1000} seconds)`,
+					`Severe packet loss detected: ${percentLoss.toFixed(2)}% (${packetsReceivedInInterval}/${EXPECTED_PACKETS_PER_INTERVAL} packets received in the last ${PACKET_LOSS_HEARTBEAT_INTERVAL_MS / 1000} seconds)`,
 				);
 
 			ActiveFlightHandler.packetLossListener?.(percentLoss);
@@ -59,19 +61,22 @@ export class ActiveFlightHandler {
 	}
 
 	private setupTelemetryEmulator() {
-		this.telemetryEmulator = new TelemetryEmulator(EXPECTED_PACKETS_PER_SECOND, (packet) => {
-			const now = new Date();
+		this.telemetryEmulator = new TelemetryEmulator(
+			EXPECTED_PACKETS_PER_INTERVAL / PACKET_LOSS_HEARTBEAT_INTERVAL_MS,
+			(packet) => {
+				const now = new Date();
 
-			this.packets.push({
-				receivedAt: new Date(),
-				parsedData: packet,
-			});
+				this.packets.push({
+					receivedAt: new Date(),
+					parsedData: packet,
+				});
 
-			ActiveFlightHandler.newPacketListener?.({
-				receivedAt: now,
-				parsedData: packet,
-			});
-		});
+				ActiveFlightHandler.newPacketListener?.({
+					receivedAt: now,
+					parsedData: packet,
+				});
+			},
+		);
 	}
 
 	private setupSerialPort() {
@@ -92,30 +97,55 @@ export class ActiveFlightHandler {
 			logger.error(data);
 		});
 
-		this.port.on("data", (data: Buffer) => {
-			const packetData = decodePacket(data);
-			const hexString = data.toString("hex").toUpperCase();
+		this.port.on("data", (chunk: Buffer) => {
+			// Concatenate newly arrived data onto our accumulator
+			this.serialAccumulator = Buffer.concat([this.serialAccumulator, chunk]);
 
-			if (!packetData) logger.warn(`Received unrecognized packet (${data.length} bytes): ${hexString}`);
+			// Loop as long as we have enough bytes to potentially process a packet
+			while (this.serialAccumulator.length >= 33) {
+				// Frame Synchronization: Check for magic sync bytes (0xA5, 0x5A)
+				if (this.serialAccumulator[0] !== 0xa5 || this.serialAccumulator[1] !== 0x5a) {
+					// Out of sync! Shift buffer forward by 1 byte and scan again
+					this.serialAccumulator = this.serialAccumulator.subarray(1);
+					continue;
+				}
 
-			this.commitBuffer.push({
-				rawBytes: hexString,
-				receivedAt: new Date(),
-				parsedData: packetData,
-			});
+				// If the buffer starts with the header but doesn't have 33 bytes yet,
+				// break out and wait for the next "data" event to complete it.
+				if (this.serialAccumulator.length < 33) {
+					break;
+				}
 
-			if (this.commitBuffer.length >= COMMIT_EVERY_N_PACKETS) this.commitPackets();
+				// Slice out exactly one 33-byte packet frame
+				const packetBuffer = this.serialAccumulator.subarray(0, 33);
+				// Advance the accumulator past this packet
+				this.serialAccumulator = this.serialAccumulator.subarray(33);
 
-			this.packets.push({
-				receivedAt: new Date(),
-				parsedData: packetData,
-			});
+				// Process the verified packet
+				const hexString = packetBuffer.toString("hex").toUpperCase();
+				const [packetData, error] = decodePacket(packetBuffer);
 
-			if (packetData)
-				ActiveFlightHandler.newPacketListener?.({
+				if (error) logger.warn(`Received unrecognized packet: ${error} (raw: ${hexString})`);
+
+				this.commitBuffer.push({
+					rawBytes: hexString,
 					receivedAt: new Date(),
 					parsedData: packetData,
 				});
+
+				if (this.commitBuffer.length >= COMMIT_EVERY_N_PACKETS) this.commitPackets();
+
+				this.packets.push({
+					receivedAt: new Date(),
+					parsedData: packetData,
+				});
+
+				if (packetData)
+					ActiveFlightHandler.newPacketListener?.({
+						receivedAt: new Date(),
+						parsedData: packetData,
+					});
+			}
 		});
 	}
 
@@ -146,35 +176,62 @@ export class ActiveFlightHandler {
 	public static stop() {
 		if (!ActiveFlightHandler._instance) return;
 
-		ActiveFlightHandler._instance.port?.close();
-		ActiveFlightHandler._instance.telemetryEmulator?.stop();
-		clearInterval(ActiveFlightHandler._instance.packetLossInterval);
-		ActiveFlightHandler.flightEndListener?.();
-
 		logger.info(`Stopping ActiveFlightHandler for flight ID ${ActiveFlightHandler._instance.flight.id}...`);
 
+		const instance = ActiveFlightHandler._instance;
 		ActiveFlightHandler._instance = undefined;
+
+		instance.port?.close();
+		instance.telemetryEmulator?.stop();
+		clearInterval(instance.packetLossInterval);
+
+		instance.commitPackets().then(() => ActiveFlightHandler.flightEndListener?.());
 	}
 
 	public static onNewPacket(listener: (packet: Pick<ValidPacket, "receivedAt" | "parsedData">) => void) {
-		this.newPacketListener = listener;
+		ActiveFlightHandler.newPacketListener = listener;
 	}
 
 	public static onPacketLoss(listener: (percentLoss: number) => void) {
-		this.packetLossListener = listener;
+		ActiveFlightHandler.packetLossListener = listener;
 	}
 
 	public static onFlightEnd(listener: () => void) {
-		this.flightEndListener = listener;
+		ActiveFlightHandler.flightEndListener = listener;
 	}
 
 	public sendRocketCommand(bytes: number[]) {
+		logger.info(`Sending rocket command: ${bytes.map((b) => `0x${b.toString(16).padStart(2, "0")}`).join(" ")}`);
+
 		if (!this.port || !this.port.isOpen) {
 			logger.warn("Rocket command ignored: serial port not open.");
 			return;
 		}
 
-		this.port.write(Buffer.from(bytes));
+		let iteration = 1;
+
+		const iterationSuffix = {
+			1: "st",
+			2: "nd",
+			3: "rd",
+		};
+
+		const sendPacket = () => {
+			this.port?.write(Buffer.from(bytes), (err) => {
+				if (err)
+					logger.error(
+						`Error sending ${iteration}${iterationSuffix[iteration as 1] ?? "th"} rocket command: ${err.message}`,
+					);
+			});
+
+			iteration++;
+		};
+
+		sendPacket();
+
+		setTimeout(sendPacket, 100);
+
+		setTimeout(sendPacket, 100);
 	}
 
 	private async commitPackets() {

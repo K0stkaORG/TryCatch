@@ -220,8 +220,8 @@ export class TelemetryEmulator {
 				altitude: verticalVelocity,
 			},
 			acceleration: {
-				latitude: accelerationLatitude,
-				longitude: accelerationLongitude,
+				x: accelerationLatitude,
+				y: accelerationLongitude,
 				altitude: verticalAcceleration,
 				total: accelerationTotal,
 			},
@@ -275,8 +275,8 @@ export class TelemetryEmulator {
 				altitude: 0,
 			},
 			acceleration: {
-				latitude: 0,
-				longitude: 0,
+				x: 0,
+				y: 0,
 				altitude: 0,
 				total: 0,
 			},

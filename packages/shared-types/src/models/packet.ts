@@ -24,6 +24,7 @@ export type ValidPacket = {
 			gyroY: number;
 			gyroZ: number;
 			kfAltitudeAgl: number;
+			rawPressure: number;
 			triboVoltageRaw: number;
 			batteryVoltageRaw: number;
 			gpsLatOffset: number;
@@ -40,8 +41,8 @@ export type ValidPacket = {
 			altitude: number;
 		};
 		acceleration: {
-			latitude: number;
-			longitude: number;
+			x: number;
+			y: number;
 			altitude: number;
 			total: number;
 		};
@@ -59,9 +60,13 @@ export type ValidPacket = {
 
 		barometricAltitude: number;
 
+		pressureHpa: number;
+
 		batteryVoltage: number;
 
 		triboelectricVoltage: number;
+
+		hallSensor: number;
 
 		fsmState: RocketFSMState;
 	};

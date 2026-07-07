@@ -2,6 +2,7 @@ import { BatteryGraph } from "@/components/active-flight/BatteryGraph";
 import { ExperimentGraph } from "@/components/active-flight/ExperimentGraph";
 import { Map } from "@/components/active-flight/Map";
 import { PositionGraphs } from "@/components/active-flight/PositionGraphs";
+import { PressureGraph } from "@/components/active-flight/PressureGraph";
 import { StatusGraph } from "@/components/active-flight/StatusGraph";
 import { TelemetryPanel } from "@/components/active-flight/TelemetryPanel";
 import ScreenTemplate from "@/components/ScreenTemplate";
@@ -84,6 +85,8 @@ const FinishedFlightScreen = () => {
 						<PositionGraphs
 							chartData={packetStreams.positionGraph}
 							packetHeartbeat={packetHeartbeat}
+							isArchived
+							flightStart={firstPacketReceivedAt ?? 0}
 						/>
 					) : (
 						<TelemetryPanel
@@ -95,26 +98,47 @@ const FinishedFlightScreen = () => {
 						</TelemetryPanel>
 					)}
 
-					{hasData ? (
-						<ExperimentGraph
-							triboelectricVoltage={packetStreams.triboelectricVoltage}
-							packetHeartbeat={packetHeartbeat}
-						/>
-					) : (
-						<TelemetryPanel
-							title="Triboelectric Voltage"
-							className="h-44 xl:h-full">
-							<div className="text-muted-foreground flex h-full items-center justify-center rounded-xl border border-dashed text-sm">
-								No telemetry data available.
-							</div>
-						</TelemetryPanel>
-					)}
+					<div className="grid gap-3 xl:grid-cols-2">
+						{hasData ? (
+							<ExperimentGraph
+								triboelectricVoltage={packetStreams.triboelectricVoltage}
+								packetHeartbeat={packetHeartbeat}
+								isArchived
+								flightStart={firstPacketReceivedAt ?? 0}
+							/>
+						) : (
+							<TelemetryPanel
+								title="Triboelectric Voltage"
+								className="h-44 xl:h-full">
+								<div className="text-muted-foreground flex h-full items-center justify-center rounded-xl border border-dashed text-sm">
+									No telemetry data available.
+								</div>
+							</TelemetryPanel>
+						)}
+						{hasData ? (
+							<PressureGraph
+								pressureHpaGraph={packetStreams.pressureHpaGraph}
+								packetHeartbeat={packetHeartbeat}
+								isArchived
+								flightStart={firstPacketReceivedAt ?? 0}
+							/>
+						) : (
+							<TelemetryPanel
+								title="Pressure"
+								className="h-44 xl:h-full">
+								<div className="text-muted-foreground flex h-full items-center justify-center rounded-xl border border-dashed text-sm">
+									No telemetry data available.
+								</div>
+							</TelemetryPanel>
+						)}
+					</div>
 
 					<div className="grid gap-3 xl:grid-cols-2">
 						{hasData ? (
 							<StatusGraph
 								statusData={packetStreams.fsmState}
 								packetHeartbeat={packetHeartbeat}
+								flightStart={firstPacketReceivedAt ?? 0}
 							/>
 						) : (
 							<TelemetryPanel
@@ -129,7 +153,9 @@ const FinishedFlightScreen = () => {
 						{hasData ? (
 							<BatteryGraph
 								batteryData={packetStreams.batteryGraph}
+								hallSensorData={packetStreams.hallSensorGraph}
 								packetHeartbeat={packetHeartbeat}
+								flightStart={firstPacketReceivedAt ?? 0}
 							/>
 						) : (
 							<TelemetryPanel

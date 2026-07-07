@@ -1,4 +1,4 @@
-import { formatAxisTime, formatShortTime } from "@/components/active-flight/telemetry-utils";
+import { formatArchivedAxisTime, formatShortTime } from "@/components/active-flight/telemetry-utils";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { TelemetryPanel } from "@/components/active-flight/TelemetryPanel";
@@ -11,6 +11,8 @@ interface ExperimentGraphProps {
 		value: number;
 	}>;
 	packetHeartbeat: number;
+	isArchived?: boolean;
+	flightStart?: number;
 }
 
 const formatCompact = (value: number) => {
@@ -24,7 +26,12 @@ const formatCompact = (value: number) => {
 	return value.toFixed(2);
 };
 
-export const ExperimentGraph = ({ triboelectricVoltage, packetHeartbeat }: ExperimentGraphProps) => {
+export const ExperimentGraph = ({
+	triboelectricVoltage,
+	packetHeartbeat,
+	isArchived,
+	flightStart,
+}: ExperimentGraphProps) => {
 	const chartData = useMemo(
 		() => [...triboelectricVoltage.buffer],
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -38,6 +45,7 @@ export const ExperimentGraph = ({ triboelectricVoltage, packetHeartbeat }: Exper
 			<ResponsiveContainer>
 				<AreaChart
 					data={chartData}
+					syncId={isArchived ? "telemetry" : undefined}
 					margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
 					<defs>
 						<linearGradient
@@ -69,7 +77,7 @@ export const ExperimentGraph = ({ triboelectricVoltage, packetHeartbeat }: Exper
 						domain={["dataMin", "dataMax"]}
 						tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
 						tickMargin={8}
-						tickFormatter={formatAxisTime}
+						tickFormatter={formatArchivedAxisTime(flightStart ?? Date.now())}
 						interval={0}
 					/>
 					<YAxis
