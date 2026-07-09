@@ -16,8 +16,7 @@ const GPS_OFFSET_SCALE_DEGREES = 1e-5;
 const ACCEL_G_PER_LSB = 1 / 2048.0;
 const GYRO_DPS_PER_LSB = 1 / 16.4;
 const G = 9.80665;
-const BATTERY_VOLT_PER_LSB = 0.01;
-const BATTERY_VOLTAGE_OFFSET = 2.0;
+const BATTERY_VOLT_PER_LSB = 0.02;
 const TRIBO_VOLT_PER_LSB = 0.001;
 
 const toDegrees = (radians: number) => (radians * 180) / Math.PI;
@@ -107,7 +106,7 @@ export const decodePacket = (data: Buffer): [Packet["parsedData"], null] | [null
 
 	const pressureHpa = rawPressure / 50;
 
-	const batteryVoltage = batteryVoltageRaw * BATTERY_VOLT_PER_LSB + BATTERY_VOLTAGE_OFFSET;
+	const batteryVoltage = batteryVoltageRaw * BATTERY_VOLT_PER_LSB;
 	const triboelectricVoltage = triboVoltageRaw * TRIBO_VOLT_PER_LSB;
 
 	return [
